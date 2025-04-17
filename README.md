@@ -2,7 +2,7 @@
 
 # Esport Oracle
 
-Esport Oracle is an open-source project developed by PoC Innovation. It serves as an oracle that integrates competitive data from CS2 tournaments onto the blockchain. This includes match statistics, tournament details, and other relevant information, ensuring transparency and accessibility for all stakeholders in the esports community.
+Esport Oracle is a decentralized oracle developed by PoC Innovation that bridges Counter-Strike 2 esports data with blockchain smart contracts. It securely and verifiably transfers match results, player statistics, tournament details and other competitive data onto the blockchain, enabling new possibilities for decentralized betting and other CS2-related applications while ensuring full transparency and accessibility for all stakeholders in the esports ecosystem.
 
 ## How does it work?
 
@@ -31,11 +31,11 @@ If you're interested in how the project is organized at a higher level, please c
 ## Our PoC team ❤️
 
 Developers
-| [<img src="https://avatars.githubusercontent.com/u/146731380?s=400&u=dcf3f96207f69a4ad4f9317791e3502d0bc18757&v=4" width=85><br><sub>[Jules Lordet]</sub>](https://github.com/L3yserEpitech) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/Nezketsu) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) 
+| [<img src="https://avatars.githubusercontent.com/u/146731380?s=400&u=dcf3f96207f69a4ad4f9317791e3502d0bc18757&v=4" width=85><br><sub>[Jules Lordet]</sub>](https://github.com/L3yserEpitech) | [<img src="https://avatars.githubusercontent.com/u/141178010?v=4" width=85><br><sub>[Gregoire Caseaux]</sub>](https://github.com/Nezketsu) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) 
 | :---: | :---: | :---: | :---: |
 
 Manager
-| [<img src="https://github.com/adrienfort.png?size=85" width=85><br><sub>[Manager's name]</sub>](https://github.com/adrienfort) | [<img src="https://github.com/adrienfort.png?size=85" width=85><br><sub>[Manager's name]</sub>](https://github.com/adrienfort)
+| [<img src="https://avatars.githubusercontent.com/u/78302154?v=4" width=85><br><sub>[Lucas Leclerc]</sub>](https://github.com/Intermarch3) | [<img src="https://github.com/adrienfort.png?size=85" width=85><br><sub>[Manager's name]</sub>](https://github.com/adrienfort)
 | :---: | :---: |
 
 <h2 align=center>
