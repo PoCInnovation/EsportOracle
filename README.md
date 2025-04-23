@@ -6,21 +6,21 @@ Esport Oracle is a decentralized oracle developed by PoC Innovation that bridges
 
 ## How does it work?
 
-[Explain how this project is working]
+Coming soon...
 
 ## Getting Started
 
 ### Installation
 
-[Explain how to install all of the project's dependencies]
+Coming soon...
 
 ### Quickstart
 
-[Explain how to run this project]
+Coming soon...
 
 ### Usage
 
-[Explain how to use this project]
+Coming soon...
 
 ## Get involved
 
@@ -31,11 +31,11 @@ If you're interested in how the project is organized at a higher level, please c
 ## Our PoC team ❤️
 
 Developers
-| [<img src="https://avatars.githubusercontent.com/u/146731380?s=400&u=dcf3f96207f69a4ad4f9317791e3502d0bc18757&v=4" width=85><br><sub>[Jules Lordet]</sub>](https://github.com/L3yserEpitech) | [<img src="https://avatars.githubusercontent.com/u/141178010?v=4" width=85><br><sub>[Gregoire Caseaux]</sub>](https://github.com/Nezketsu) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) 
+| [<img src="https://avatars.githubusercontent.com/u/146731380?s=400&u=dcf3f96207f69a4ad4f9317791e3502d0bc18757&v=4" width=85><br><sub>[Jules Lordet]</sub>](https://github.com/L3yserEpitech) | [<img src="https://avatars.githubusercontent.com/u/141178010?v=4" width=85><br><sub>[Gregoire Caseaux]</sub>](https://github.com/Nezketsu) | [<img src="https://avatars.githubusercontent.com/u/146000349?v=4" width=85><br><sub>[Grégor Sternat]</sub>](https://github.com/gregorsternat) | [<img src="https://avatars.githubusercontent.com/u/181359842?v=4" width=85><br><sub>[Aaron Aniambossou]</sub>](https://github.com/Aa-D-Wlter) 
 | :---: | :---: | :---: | :---: |
 
 Manager
-| [<img src="https://avatars.githubusercontent.com/u/78302154?v=4" width=85><br><sub>[Lucas Leclerc]</sub>](https://github.com/Intermarch3) | [<img src="https://github.com/adrienfort.png?size=85" width=85><br><sub>[Manager's name]</sub>](https://github.com/adrienfort)
+| [<img src="https://avatars.githubusercontent.com/u/78302154?v=4" width=85><br><sub>[Lucas Leclerc]</sub>](https://github.com/Intermarch3) | [<img src="https://avatars.githubusercontent.com/u/117595009?v=4" width=85><br><sub>[Sacha Dujardin]</sub>](https://github.com/Sacharbon)
 | :---: | :---: |
 
 <h2 align=center>
