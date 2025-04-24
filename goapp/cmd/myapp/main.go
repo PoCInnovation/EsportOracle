@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"https://github.com/PoCInnovation/EsportOracle/tree/main/goapp/internal/models"
+	"src/internal/models"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 		return
 	}
 
-	var matches []Match
+	var matches []models.Match
 	if err := json.Unmarshal(body, &matches); err != nil {
 		fmt.Println("Erreur lors de l'unmarshal du JSON:", err)
 		return
