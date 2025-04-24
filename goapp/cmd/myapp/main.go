@@ -1,77 +1,31 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
+    "fmt"
+    "log"
+    "os"
 
-	"src/internal/models"
+    "github.com/joho/godotenv"
+    "src/internal/client"
+    "src/internal/service"
 )
 
 func main() {
-	url := "https://api.pandascore.co/csgo/matches/upcoming?filter[future]=true&token=uqql5zPjp28p7kbgS_Uoc3TUS5wUV6fjTcTpuB1u82uCe7X6A2s"
+    if err := godotenv.Load(); err != nil {
+        log.Println("Warning: .env file not found")
+    }
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fmt.Println("Erreur lors de la création de la requête:", err)
-		return
-	}
-	req.Header.Add("Authorization", "Bearer uqql5zPjp28p7kbgS_Uoc3TUS5wUV6fjTcTpuB1u82uCe7X6A2s")
-	req.Header.Add("Accept", "application/json")
+    apiToken := os.Getenv("TOKEN")
+    if apiToken == "" {
+        log.Println("Warning: API token not set in environment variables")
+		os.Exit(1)
+    }
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Println("Erreur lors de l'envoi de la requête:", err)
-		return
-	}
-	defer res.Body.Close()
+    pandaClient := client.NewPandaScoreClient(apiToken)
+    matchService := service.NewMatchService(pandaClient)
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		fmt.Println("Erreur lors de la lecture de la réponse:", err)
-		return
-	}
-
-	var matches []models.Match
-	if err := json.Unmarshal(body, &matches); err != nil {
-		fmt.Println("Erreur lors de l'unmarshal du JSON:", err)
-		return
-	}
-
-	for _, match := range matches {
-		matchOutput := map[string]interface{}{
-			"begin_at":       match.BeginAt,
-			"draw":           match.Draw,
-			"forfeit":        match.Forfeit,
-			"games":          match.Games,
-			"id":             match.ID,
-			"name":           match.Name,
-			"number_of_games": match.NumberOfGames,
-			"opponents":      match.Opponents,
-			"results":        match.Results,
-			"winner_id":      match.WinnerID,
-		}
-
-		prettyJSON, err := json.MarshalIndent(matchOutput, "", "  ")
-		if err != nil {
-			fmt.Println("Erreur lors de l'indentation du JSON:", err)
-			return
-		}
-
-		fmt.Println(string(prettyJSON))
-	}
-
-	outputFile := "high_level_upcoming_matches.json"
-	prettyJSON, err := json.MarshalIndent(matches, "", "  ")
-	if err != nil {
-		fmt.Println("Erreur lors de l'indentation du JSON:", err)
-		return
-	}
-	if err := os.WriteFile(outputFile, prettyJSON, 0644); err != nil {
-		fmt.Println("Erreur lors de l'écriture dans le fichier:", err)
-		return
-	}
-	fmt.Printf("Les données ont été sauvegardées dans le fichier %s\n", outputFile)
+    if err := matchService.FetchAndSaveMatches(); err != nil {
+        fmt.Printf("Error: %v\n", err)
+        os.Exit(1)
+    }
 }
