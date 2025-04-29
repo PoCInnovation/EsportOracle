@@ -4,6 +4,35 @@ pragma solidity ^0.8.20;
 contract EsportOracle {
     address public _owner;
 
+    struct Result {
+        uint8 _score;
+        uint256 _teamId;
+    }
+
+    struct Games {
+        uint256 _id;
+        bool _finished;
+        uint256 _winnerId;
+    }
+
+    struct Opponents {
+        string _acronym;
+        uint256 _id;
+        string _name;
+    }
+
+
+    struct Match {
+        uint256 _id;
+        Opponents[] _opponents;
+        Games[] _game;
+        Result[] _result;
+        uint256 _winnerId;
+        uint256 _beginAt;
+    }
+
+    mapping(uint256 => Match) public _matchMapping;
+
     constructor() {
         _owner = msg.sender;
     }
