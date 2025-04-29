@@ -1,16 +1,12 @@
 package models
 
 type Match struct {
-    BeginAt      string    `json:"begin_at"`
-    Draw         bool      `json:"draw"`
-    Forfeit      bool      `json:"forfeit"`
-    Games        []Game    `json:"games"`
     ID           int       `json:"id"`
-    Name         string    `json:"name"`
-    NumberOfGames int      `json:"number_of_games"`
     Opponents    []Opponent `json:"opponents"`
+    Games        []Game    `json:"games"`
     Results      []Result  `json:"results"`
     WinnerID     int       `json:"winner_id"`
+    BeginAt      string    `json:"begin_at"`
 }
 
 type Game struct {
@@ -21,7 +17,6 @@ type Game struct {
 
 type Winner struct {
     ID   *int  `json:"id"`
-    Type string `json:"type"`
 }
 
 type Opponent struct {
@@ -31,9 +26,7 @@ type Opponent struct {
 type Team struct {
     Acronym  string `json:"acronym"`
     ID       int    `json:"id"`
-    ImageURL string `json:"image_url"`
     Name     string `json:"name"`
-    Slug     string `json:"slug"`
 }
 
 type Result struct {
