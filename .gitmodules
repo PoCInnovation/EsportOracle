@@ -1,0 +1,3 @@
+[submodule "oracle/lib/forge-std"]
+	path = oracle/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
