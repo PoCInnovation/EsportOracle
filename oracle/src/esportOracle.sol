@@ -21,7 +21,6 @@ contract EsportOracle {
         string _name;
     }
 
-
     struct Match {
         uint256 _id;
         Opponents[] _opponents;
@@ -36,14 +35,31 @@ contract EsportOracle {
     constructor() {
         _owner = msg.sender;
     }
-
+    
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not the contract owner");
         _;
     }
 
+    /**
+     * @notice Set the new owner of the contract
+     * @param newOwner The address of the new owner
+     * @dev Only the current owner can call this function
+     */
     function setOwner(address newOwner) public onlyOwner {
         require(newOwner != address(0), "New owner cannot be zero address");
         _owner = newOwner;
+    }
+
+    /**
+     * @notice add match blockchain
+     * @param newMatch a tab of Match 
+     */
+    function updateMatch(
+        Match[] memory newMatch
+    ) external {
+        for (uint8 i = 0; i < newMatch.length; i++) {
+            _matchMapping[newMatch[i]._id] = newMatch[i];
+        }
     }
 }
