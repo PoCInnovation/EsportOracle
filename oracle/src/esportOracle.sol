@@ -62,4 +62,13 @@ contract EsportOracle {
             _matchMapping[newMatch[i]._id] = newMatch[i];
         }
     }
+    /**
+     * @notice returns the match by id
+     * @param matchId The id of the match
+     * @return The match object
+     * @dev This function retrieves a match by its ID from the mapping
+     */
+    function getMatchById(uint256 matchId) external view returns (Match memory) {
+        return (_matchMapping[matchId]);
+    }
 }
