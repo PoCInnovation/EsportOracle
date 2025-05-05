@@ -55,9 +55,7 @@ contract EsportOracle {
      * @notice add match blockchain
      * @param newMatch a tab of Match 
      */
-    function addNewMatch(
-        Match[] memory newMatch
-    ) external {
+    function addNewMatch(Match[] memory newMatch) external {
         for (uint8 i = 0; i < newMatch.length; i++) {
             _matchMapping[newMatch[i]._id] = newMatch[i];
         }
