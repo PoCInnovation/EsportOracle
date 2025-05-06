@@ -65,6 +65,22 @@ contract EsportOracle {
     }
 
     /**
+     * @notice verify if the calling address is already listed
+     */
+    modifier nodeAlreadyListed() {
+        bool isListed = false;
+
+        for (uint i = 0; i < listedNodes.length; i++) {
+            if (listedNodes[i] == msg.sender) {
+                isListed = true;
+                break;
+            }
+        }
+        require(isListed == false, "Node is already listed");
+        _;
+    }
+
+    /**
      * @notice Set the new owner of the contract
      * @param newOwner The address of the new owner
      * @dev Only the current owner can call this function
@@ -116,7 +132,7 @@ contract EsportOracle {
     /**
      * @notice function to add a new node
      */
-    function addNewNode() external {
+    function addNewNode() external nodeAlreadyListed {
         require(msg.sender != address(0), "New node cannot be zero address");
         listedNodes.push(msg.sender);
         emit newNodeAdded(msg.sender);
