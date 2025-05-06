@@ -31,13 +31,30 @@ contract EsportOracle {
     }
 
     mapping(uint256 => Match) public _matchMapping;
+    address[] private listedNodes;
 
     constructor() {
         _owner = msg.sender;
     }
-    
+
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not the contract owner");
+        _;
+    }
+
+    /**
+     * @notice verify if the calling address is listed
+    */
+    modifier onlyListedNodes() {
+        bool isListed = false;
+
+        for (uint i = 0; i < listedNodes.length; i++) {
+            if (listedNodes[i] == msg.sender) {
+                isListed = true;
+                break;
+            }
+        }
+        require(isListed == true, "Node is not listed, please call ...");
         _;
     }
 
@@ -60,6 +77,7 @@ contract EsportOracle {
             _matchMapping[newMatch[i]._id] = newMatch[i];
         }
     }
+
     /**
      * @notice returns the match by id
      * @param matchId The id of the match
