@@ -37,6 +37,12 @@ contract EsportOracle {
         _owner = msg.sender;
     }
 
+    /**
+     * @notice event emitted when a new node is added
+     * @param addressAdded The address of the owner of the new node
+     */
+    event newNodeAdded(address indexed addressAdded);
+
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not the contract owner");
         _;
@@ -44,7 +50,7 @@ contract EsportOracle {
 
     /**
      * @notice verify if the calling address is listed
-    */
+     */
     modifier onlyListedNodes() {
         bool isListed = false;
 
@@ -86,5 +92,14 @@ contract EsportOracle {
      */
     function getMatchById(uint256 matchId) external view returns (Match memory) {
         return (_matchMapping[matchId]);
+    }
+
+    /**
+     * @notice function to add a new node
+     */
+    function addNewNode() external {
+        require(msg.sender != address(0), "New node cannot be zero address");
+        listedNodes.push(msg.sender);
+        emit newNodeAdded(msg.sender);
     }
 }
