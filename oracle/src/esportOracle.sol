@@ -43,6 +43,7 @@ contract EsportOracle {
      * @param addressAdded The address of the owner of the new node
      */
     event newNodeAdded(address indexed addressAdded);
+    event quorumReached(uint256 quorum);
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not the contract owner");
@@ -66,6 +67,22 @@ contract EsportOracle {
     }
 
     /**
+     * @notice verify if the calling address is already listed
+     */
+    modifier nodeAlreadyListed() {
+        bool isListed = false;
+
+        for (uint i = 0; i < listedNodes.length; i++) {
+            if (listedNodes[i] == msg.sender) {
+                isListed = true;
+                break;
+            }
+        }
+        require(isListed == false, "Node is already listed");
+        _;
+    }
+
+    /**
      * @notice Set the new owner of the contract
      * @param newOwner The address of the new owner
      * @dev Only the current owner can call this function
@@ -82,10 +99,29 @@ contract EsportOracle {
     function addNewMatch(Match[] memory newMatch) internal {
 
         for (uint8 i = 0; i < newMatch.length; i++) {
-            _matchMapping[newMatch[i]._id] = newMatch[i];
+            uint256 matchId = newMatch[i]._id;
+
+            _matchMapping[matchId]._id = matchId;
+            _matchMapping[matchId]._winnerId = newMatch[i]._winnerId;
+            _matchMapping[matchId]._beginAt = newMatch[i]._beginAt;
+
+            for (uint256 j = 0; j < newMatch[i]._opponents.length; j++) {
+                Opponents memory opponent = newMatch[i]._opponents[j];
+                _matchMapping[matchId]._opponents.push(opponent);
+            }
+
+            for (uint256 j = 0; j < newMatch[i]._game.length; j++) {
+                Games memory game = newMatch[i]._game[j];
+                _matchMapping[matchId]._game.push(game);
+            }
+
+            for (uint256 j = 0; j < newMatch[i]._result.length; j++) {
+                Result memory result = newMatch[i]._result[j];
+                _matchMapping[matchId]._result.push(result);
+            }
         }
     }
-
+    
     /**
      * @notice returns the match by id
      * @param matchId The id of the match
@@ -99,8 +135,8 @@ contract EsportOracle {
     /**
      * @notice function to add a new node
      */
-    function addNewNode() external {
-        require(msg.sender != _owner, "Only the owner can add nodes");
+    function addNewNode() external nodeAlreadyListed {
+        require(msg.sender != _owner, "owner cannot be a node");
         require(msg.sender != address(0), "New node cannot be zero address");
         listedNodes.push(msg.sender);
         emit newNodeAdded(msg.sender);
@@ -111,7 +147,7 @@ contract EsportOracle {
         addNewMatch(newMatch);
         dataNodes.push(newMatch[0]);
         if (isQuorumReached()) {
-            // Logic to handle when quorum is reached
+            emit quorumReached(dataNodes.length);
         }
     }
 
@@ -129,7 +165,7 @@ contract EsportOracle {
     */
 
     function isQuorumReached() public view returns (bool) {
-        require(listedNodes.length > 0, "No nodes listed");
+        require(listedNodes.length > 2, "require at least 3 nodes to reach quorum");
         uint256 quorum = (listedNodes.length * 2) / 3;
         return dataNodes.length >= quorum;
     }
