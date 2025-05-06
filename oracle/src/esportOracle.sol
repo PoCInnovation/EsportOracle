@@ -102,4 +102,12 @@ contract EsportOracle {
         listedNodes.push(msg.sender);
         emit newNodeAdded(msg.sender);
     }
+
+    /**
+     * @notice function to return the list of nodes addresses
+     * @return The list of addresses of the nodes
+     */
+    function getListedNodes() external view returns (address[] memory) {
+        return listedNodes;
+    }
 }
