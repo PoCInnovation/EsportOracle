@@ -55,11 +55,18 @@ contract EsportOracle {
      * @notice add match blockchain
      * @param newMatch a tab of Match 
      */
-    function addNewMatch(
-        Match[] memory newMatch
-    ) external {
+    function addNewMatch(Match[] memory newMatch) external {
         for (uint8 i = 0; i < newMatch.length; i++) {
             _matchMapping[newMatch[i]._id] = newMatch[i];
         }
+    }
+    /**
+     * @notice returns the match by id
+     * @param matchId The id of the match
+     * @return The match object
+     * @dev This function retrieves a match by its ID from the mapping
+     */
+    function getMatchById(uint256 matchId) external view returns (Match memory) {
+        return (_matchMapping[matchId]);
     }
 }
