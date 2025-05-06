@@ -32,6 +32,7 @@ contract EsportOracle {
 
     mapping(uint256 => Match) public _matchMapping;
     address[] private listedNodes;
+    Match[] private dataNodes;
 
     constructor() {
         _owner = msg.sender;
@@ -76,9 +77,10 @@ contract EsportOracle {
 
     /**
      * @notice add match blockchain
-     * @param newMatch a tab of Match 
+     * @param newMatch a tab of Match
      */
-    function addNewMatch(Match[] memory newMatch) external {
+    function addNewMatch(Match[] memory newMatch) internal {
+
         for (uint8 i = 0; i < newMatch.length; i++) {
             _matchMapping[newMatch[i]._id] = newMatch[i];
         }
@@ -98,9 +100,19 @@ contract EsportOracle {
      * @notice function to add a new node
      */
     function addNewNode() external {
+        require(msg.sender != _owner, "Only the owner can add nodes");
         require(msg.sender != address(0), "New node cannot be zero address");
         listedNodes.push(msg.sender);
         emit newNodeAdded(msg.sender);
+    }
+
+    function addDataNode(Match[] memory newMatch) external onlyListedNodes {
+        require(newMatch.length > 0, "No match data provided");
+        addNewMatch(newMatch);
+        dataNodes.push(newMatch[0]);
+        if (isQuorumReached()) {
+            // Logic to handle when quorum is reached
+        }
     }
 
     /**
@@ -109,5 +121,16 @@ contract EsportOracle {
      */
     function getListedNodes() external view returns (address[] memory) {
         return listedNodes;
+    }
+
+    /**
+     * @notice Checks if the quorum is reached
+     * @return True if the quorum is reached, false otherwise
+    */
+
+    function isQuorumReached() public view returns (bool) {
+        require(listedNodes.length > 0, "No nodes listed");
+        uint256 quorum = (listedNodes.length * 2) / 3;
+        return dataNodes.length >= quorum;
     }
 }
