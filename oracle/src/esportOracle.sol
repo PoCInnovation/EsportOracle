@@ -31,8 +31,8 @@ contract EsportOracle {
     }
 
     mapping(uint256 => Match) public _matchMapping;
+    mapping(uint256 => bool[]) public _matchQueue;
     address[] private listedNodes;
-    Match[] private dataNodes;
 
     constructor() {
         _owner = msg.sender;
@@ -43,7 +43,6 @@ contract EsportOracle {
      * @param addressAdded The address of the owner of the new node
      */
     event newNodeAdded(address indexed addressAdded);
-    event quorumReached(uint256 quorum);
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not the contract owner");
@@ -96,29 +95,26 @@ contract EsportOracle {
      * @notice add match blockchain
      * @param newMatch a tab of Match
      */
-    function addNewMatch(Match[] memory newMatch) internal {
+    function addNewMatch(Match memory newMatch) internal {
+        uint256 matchId = newMatch._id;
 
-        for (uint8 i = 0; i < newMatch.length; i++) {
-            uint256 matchId = newMatch[i]._id;
+        _matchMapping[matchId]._id = matchId;
+        _matchMapping[matchId]._winnerId = newMatch._winnerId;
+        _matchMapping[matchId]._beginAt = newMatch._beginAt;
 
-            _matchMapping[matchId]._id = matchId;
-            _matchMapping[matchId]._winnerId = newMatch[i]._winnerId;
-            _matchMapping[matchId]._beginAt = newMatch[i]._beginAt;
+        for (uint256 j = 0; j < newMatch._opponents.length; j++) {
+            Opponents memory opponent = newMatch._opponents[j];
+            _matchMapping[matchId]._opponents.push(opponent);
+        }
 
-            for (uint256 j = 0; j < newMatch[i]._opponents.length; j++) {
-                Opponents memory opponent = newMatch[i]._opponents[j];
-                _matchMapping[matchId]._opponents.push(opponent);
-            }
+        for (uint256 j = 0; j < newMatch._game.length; j++) {
+            Games memory game = newMatch._game[j];
+            _matchMapping[matchId]._game.push(game);
+        }
 
-            for (uint256 j = 0; j < newMatch[i]._game.length; j++) {
-                Games memory game = newMatch[i]._game[j];
-                _matchMapping[matchId]._game.push(game);
-            }
-
-            for (uint256 j = 0; j < newMatch[i]._result.length; j++) {
-                Result memory result = newMatch[i]._result[j];
-                _matchMapping[matchId]._result.push(result);
-            }
+        for (uint256 j = 0; j < newMatch._result.length; j++) {
+            Result memory result = newMatch._result[j];
+            _matchMapping[matchId]._result.push(result);
         }
     }
     
@@ -142,12 +138,17 @@ contract EsportOracle {
         emit newNodeAdded(msg.sender);
     }
 
+    /**
+     * @notice function 
+     */
     function addDataNode(Match[] memory newMatch) external onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
-        addNewMatch(newMatch);
-        dataNodes.push(newMatch[0]);
-        if (isQuorumReached()) {
-            emit quorumReached(dataNodes.length);
+
+        for (uint256 i = 0; i < newMatch.length; i++) {
+            _matchQueue[newMatch[i]._id].push(true);
+            if (isQuorumReached(newMatch[i])) {
+                addNewMatch(newMatch[i]);
+            }
         }
     }
 
@@ -162,11 +163,14 @@ contract EsportOracle {
     /**
      * @notice Checks if the quorum is reached
      * @return True if the quorum is reached, false otherwise
-    */
-
-    function isQuorumReached() public view returns (bool) {
+     */
+    function isQuorumReached(Match memory newMatch) public returns (bool) {
         require(listedNodes.length > 2, "require at least 3 nodes to reach quorum");
-        uint256 quorum = (listedNodes.length * 2) / 3;
-        return dataNodes.length >= quorum;
+        
+        if (_matchQueue[newMatch._id].length > 2) {
+            delete(_matchMapping[newMatch._id]);
+            return true;
+        }
+        return false;
     }
 }
