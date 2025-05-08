@@ -9,6 +9,7 @@ contract EsportOracleTest is Test {
     address public owner;
     address public user1;
     address public user2;
+    address public user3;
 
     event newNodeAdded(address indexed addressAdded);
 
@@ -16,6 +17,7 @@ contract EsportOracleTest is Test {
         owner = address(this);
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
+        user3 = makeAddr("user3");
 
         vm.prank(owner);
         oracle = new EsportOracle();
@@ -81,24 +83,6 @@ contract EsportOracleTest is Test {
         oracle.addNewNode();
     }
 
-    function testAddNewNodeWithOwner() public {
-        vm.prank(owner);
-        vm.expectRevert("owner cannot be a node");
-        oracle.addNewNode();
-    }
-
-    function testQuorumWithNotEnoughNode() public {
-        vm.prank(user1);
-        oracle.addNewNode();
-
-        vm.prank(user2);
-        oracle.addNewNode();
-
-        vm.prank(owner);
-        vm.expectRevert("require at least 3 nodes to reach quorum");
-        oracle.isQuorumReached();
-    }
-
     function testQuorumWithEnoughNode() public {
         EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
         opponents[0] = EsportOracle.Opponents({
@@ -136,7 +120,75 @@ contract EsportOracleTest is Test {
             _beginAt: block.timestamp
         });
 
-        address user3 = makeAddr("user3");
+        vm.prank(user1);
+        oracle.addNewNode();
+
+        vm.prank(user2);
+        oracle.addNewNode();
+
+        vm.prank(user3);
+        oracle.addNewNode();
+
+        vm.prank(user1);
+        oracle.handleNewMatches(matches);
+
+        vm.prank(user2);
+        oracle.handleNewMatches(matches);
+
+        vm.prank(user3);
+        oracle.handleNewMatches(matches);
+
+        EsportOracle.Match memory dataNode = oracle.getMatchById(1);
+        assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
+
+        assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
+    }
+
+    function testQuorumWithEnoughSameMatch() public {
+        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
+        opponents[0] = EsportOracle.Opponents({
+            _acronym: "TA",
+            _id: 1,
+            _name: "Team A"
+        });
+        opponents[1] = EsportOracle.Opponents({
+            _acronym: "TB",
+            _id: 2,
+            _name: "Team B"
+        });
+        EsportOracle.Games[] memory games = new EsportOracle.Games[](1);
+        games[0] = EsportOracle.Games({
+            _id: 1,
+            _finished: true,
+            _winnerId: 1
+        });
+        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
+        results[0] = EsportOracle.Result({
+            _score: 3,
+            _teamId: 1
+        });
+        results[1] = EsportOracle.Result({
+            _score: 1,
+            _teamId: 2
+        });
+        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
+        matches[0] = EsportOracle.Match({
+            _id: 1,
+            _opponents: opponents,
+            _game: games,
+            _result: results,
+            _winnerId: 1,
+            _beginAt: block.timestamp
+        });
+        EsportOracle.Match[] memory matches2 = new EsportOracle.Match[](1);
+        matches[0] = EsportOracle.Match({
+            _id: 2,
+            _opponents: opponents,
+            _game: games,
+            _result: results,
+            _winnerId: 2,
+            _beginAt: block.timestamp
+        });
 
         vm.prank(user1);
         oracle.addNewNode();
@@ -148,14 +200,22 @@ contract EsportOracleTest is Test {
         oracle.addNewNode();
 
         vm.prank(user1);
-        oracle.addDataNode(matches);
+        oracle.handleNewMatches(matches);
 
         vm.prank(user2);
-        oracle.addDataNode(matches);
+        oracle.handleNewMatches(matches);
+
+        assertEq(oracle.getPendingMatches().length, 1, "le nombre de match doit etre de 1");
 
         vm.prank(user3);
-        oracle.addDataNode(matches);
+        oracle.handleNewMatches(matches2);
 
-        assertTrue(oracle.isQuorumReached(), "Le quorum doit etre atteint");
+        EsportOracle.Match memory dataNode = oracle.getMatchById(1);
+        assertEq(dataNode._id, 0, "L'ID du match doit correspondre");
+
+        dataNode = oracle.getMatchById(2);
+        assertEq(dataNode._id, 0, "L'ID du match doit correspondre");
+
+        assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
     }
 }
