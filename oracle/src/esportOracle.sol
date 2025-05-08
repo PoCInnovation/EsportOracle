@@ -31,11 +31,15 @@ contract EsportOracle {
     }
 
     mapping(uint256 => Match) public _matchMapping;
-    mapping(uint256 => bool[]) public _matchQueue;
     address[] private listedNodes;
+    mapping(bytes32 => uint8) public _matchVotes;
+    mapping(bytes32 => address[]) public _addressByHash;
+    bytes32[] public _pendingMatchesHashes;
+    uint8 nbMatchSent;
 
     constructor() {
         _owner = msg.sender;
+        nbMatchSent = 0;
     }
 
     /**
@@ -139,17 +143,39 @@ contract EsportOracle {
     }
 
     /**
-     * @notice function 
+     * @notice function called by listed nodes only, to register new matches
+     * @param newMatch : a list of matches to register
      */
-    function addDataNode(Match[] memory newMatch) external onlyListedNodes {
+    function handleNewMatches(Match[] memory newMatch) external onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
-
+        nbMatchSent++;
         for (uint256 i = 0; i < newMatch.length; i++) {
-            _matchQueue[newMatch[i]._id].push(true);
-            if (isQuorumReached(newMatch[i])) {
+            bytes32 matchHash = keccak256(abi.encode(newMatch[i]));
+            _matchVotes[matchHash]++;
+            if (_matchVotes[matchHash] == 1) {
+                _pendingMatchesHashes.push(matchHash);
+                _addressByHash[matchHash].push(msg.sender);
+            }
+            if (_matchVotes[matchHash] == 3) {
                 addNewMatch(newMatch[i]);
             }
         }
+        if (nbMatchSent == listedNodes.length) {
+            for (uint8 i = 0; i < _pendingMatchesHashes.length; i++) {
+                delete(_matchVotes[_pendingMatchesHashes[i]]);
+                delete(_addressByHash[_pendingMatchesHashes[i]]);
+            }
+            delete(_pendingMatchesHashes);
+            nbMatchSent = 0;
+        }
+    }
+
+    /**
+     * @notice function to return the list pending match hash
+     * @return The list of hashes
+     */
+    function getPendingMatches() external view returns (bytes32[] memory) {
+        return (_pendingMatchesHashes);
     }
 
     /**
@@ -158,19 +184,5 @@ contract EsportOracle {
      */
     function getListedNodes() external view returns (address[] memory) {
         return listedNodes;
-    }
-
-    /**
-     * @notice Checks if the quorum is reached
-     * @return True if the quorum is reached, false otherwise
-     */
-    function isQuorumReached(Match memory newMatch) public returns (bool) {
-        require(listedNodes.length > 2, "require at least 3 nodes to reach quorum");
-        
-        if (_matchQueue[newMatch._id].length > 2) {
-            delete(_matchMapping[newMatch._id]);
-            return true;
-        }
-        return false;
     }
 }
