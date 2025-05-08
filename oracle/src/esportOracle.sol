@@ -65,7 +65,7 @@ contract EsportOracle {
                 break;
             }
         }
-        require(isListed == true, "Node is not listed, please call ...");
+        require(isListed == true, "Node is not listed, please call addNewNode function to register a new node");
         _;
     }
 
