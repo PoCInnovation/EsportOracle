@@ -159,8 +159,8 @@ contract EsportOracle {
         }
 
         // SECTION 5: UPDATE OPPONENTS DATA
-        bytes32 currentOpponentHash = keccak256(abi.encode(_matchMapping[matchId]._game));
-        bytes32 newOppenentHash = keccak256(abi.encode(newMatch._game));
+        bytes32 currentOpponentHash = keccak256(abi.encode(_matchMapping[matchId]._opponents));
+        bytes32 newOppenentHash = keccak256(abi.encode(newMatch._opponents));
 
         if (currentOpponentHash != newOppenentHash) {
             delete (_matchMapping[matchId]._opponents);
