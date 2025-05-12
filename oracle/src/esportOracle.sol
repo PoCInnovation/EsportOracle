@@ -97,31 +97,80 @@ contract EsportOracle {
 
     /**
      * @notice add match blockchain
-     * @param newMatch a tab of Match
+     * @param newMatch a tab of a Match
      */
     function addNewMatch(Match memory newMatch) internal {
         uint256 matchId = newMatch._id;
 
-        _matchMapping[matchId]._id = matchId;
-        _matchMapping[matchId]._winnerId = newMatch._winnerId;
-        _matchMapping[matchId]._beginAt = newMatch._beginAt;
+        // SECTION 1: INITIAL MATCH CREATION
+        // If the match doesn't exist yet (ID = 0), initialize it with all data
+        if (_matchMapping[matchId]._id == 0) {
+            delete _matchMapping[matchId];
+            _matchMapping[matchId]._id = matchId;
+            _matchMapping[matchId]._winnerId = newMatch._winnerId;
+            _matchMapping[matchId]._beginAt = newMatch._beginAt;
 
-        for (uint256 j = 0; j < newMatch._opponents.length; j++) {
-            Opponents memory opponent = newMatch._opponents[j];
-            _matchMapping[matchId]._opponents.push(opponent);
+            // Copy all opponents data
+            for (uint256 j = 0; j < newMatch._opponents.length; j++) {
+                Opponents memory opponent = newMatch._opponents[j];
+                _matchMapping[matchId]._opponents.push(opponent);
+            }
+
+            // Copy all games data
+            for (uint256 j = 0; j < newMatch._game.length; j++) {
+                Games memory game = newMatch._game[j];
+                _matchMapping[matchId]._game.push(game);
+            }
+
+            // Copy all results data
+            for (uint256 j = 0; j < newMatch._result.length; j++) {
+                Result memory result = newMatch._result[j];
+                _matchMapping[matchId]._result.push(result);
+            }
         }
 
-        for (uint256 j = 0; j < newMatch._game.length; j++) {
-            Games memory game = newMatch._game[j];
-            _matchMapping[matchId]._game.push(game);
+        // SECTION 2: UPDATE WINNER ID
+        if (newMatch._winnerId != _matchMapping[matchId]._winnerId) {
+            _matchMapping[matchId]._winnerId = newMatch._winnerId;
         }
 
-        for (uint256 j = 0; j < newMatch._result.length; j++) {
-            Result memory result = newMatch._result[j];
-            _matchMapping[matchId]._result.push(result);
+        // SECTION 3: UPDATE GAMES DATA
+        bytes32 currentGameHash = keccak256(abi.encode(_matchMapping[matchId]._game));
+        bytes32 newGameHash = keccak256(abi.encode(newMatch._game));
+
+        if (currentGameHash != newGameHash) {
+            delete (_matchMapping[matchId]._game);
+            for (uint256 j = 0; j < newMatch._game.length; j++) {
+                Games memory game = newMatch._game[j];
+                _matchMapping[matchId]._game.push(game);
+            }
+        }
+
+        // SECTION 4: UPDATE RESULTS DATA
+        bytes32 currentResultHash = keccak256(abi.encode(_matchMapping[matchId]._result));
+        bytes32 newResultHash = keccak256(abi.encode(newMatch._result));
+
+        if (currentResultHash != newResultHash) {
+            delete (_matchMapping[matchId]._result);
+            for (uint256 j = 0; j < newMatch._result.length; j++) {
+                Result memory result = newMatch._result[j];
+                _matchMapping[matchId]._result.push(result);
+            }
+        }
+
+        // SECTION 5: UPDATE OPPONENTS DATA
+        bytes32 currentOpponentHash = keccak256(abi.encode(_matchMapping[matchId]._game));
+        bytes32 newOppenentHash = keccak256(abi.encode(newMatch._game));
+
+        if (currentOpponentHash != newOppenentHash) {
+            delete (_matchMapping[matchId]._opponents);
+            for (uint256 j = 0; j < newMatch._opponents.length; j++) {
+                Opponents memory opponent = newMatch._opponents[j];
+                _matchMapping[matchId]._opponents.push(opponent);
+            }
         }
     }
-    
+
     /**
      * @notice returns the match by id
      * @param matchId The id of the match
