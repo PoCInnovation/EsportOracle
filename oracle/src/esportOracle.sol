@@ -127,6 +127,7 @@ contract EsportOracle {
                 Result memory result = newMatch._result[j];
                 _matchMapping[matchId]._result.push(result);
             }
+            return;
         }
 
         // SECTION 2: UPDATE WINNER ID
