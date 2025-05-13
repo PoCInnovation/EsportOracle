@@ -182,6 +182,10 @@ contract EsportOracle {
         return (_matchMapping[matchId]);
     }
 
+    function qorumIsReached(uint8 nbVote) private view returns (bool) {
+        return (listedNodes.length / 2) < nbVote;
+    }
+
     /**
      * @notice function to add a new node
      */
@@ -206,7 +210,7 @@ contract EsportOracle {
                 _pendingMatchesHashes.push(matchHash);
                 _addressByHash[matchHash].push(msg.sender);
             }
-            if (_matchVotes[matchHash] == 3) {
+            if (qorumIsReached(_matchVotes[matchHash])) {
                 addNewMatch(newMatch[i]);
             }
         }
