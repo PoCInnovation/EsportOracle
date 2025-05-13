@@ -218,4 +218,113 @@ contract EsportOracleTest is Test {
 
         assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
     }
+
+    function testUpdatingMatchAlreadyRegister() public {
+        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
+        opponents[0] = EsportOracle.Opponents({
+            _acronym: "TA",
+            _id: 1,
+            _name: "Team A"
+        });
+        opponents[1] = EsportOracle.Opponents({
+            _acronym: "TB",
+            _id: 2,
+            _name: "Team B"
+        });
+        EsportOracle.Games[] memory games = new EsportOracle.Games[](3);
+        games[0] = EsportOracle.Games({
+            _id: 1,
+            _finished: false,
+            _winnerId: 0
+        });
+        games[1] = EsportOracle.Games({
+            _id: 2,
+            _finished: false,
+            _winnerId: 0
+        });
+        games[2] = EsportOracle.Games({
+            _id: 3,
+            _finished: false,
+            _winnerId: 0
+        });
+        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
+        results[0] = EsportOracle.Result({
+            _score: 3,
+            _teamId: 1
+        });
+        results[1] = EsportOracle.Result({
+            _score: 1,
+            _teamId: 2
+        });
+        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
+        matches[0] = EsportOracle.Match({
+            _id: 1,
+            _opponents: opponents,
+            _game: games,
+            _result: results,
+            _winnerId: 1,
+            _beginAt: block.timestamp
+        });
+
+        vm.prank(user1);
+        oracle.addNewNode();
+
+        vm.prank(user2);
+        oracle.addNewNode();
+
+        vm.prank(user3);
+        oracle.addNewNode();
+
+        vm.prank(user1);
+        oracle.handleNewMatches(matches);
+
+        vm.prank(user2);
+        oracle.handleNewMatches(matches);
+
+        vm.prank(user3);
+        oracle.handleNewMatches(matches);
+
+        EsportOracle.Games[] memory games2 = new EsportOracle.Games[](3);
+        games2[0] = EsportOracle.Games({
+            _id: 1,
+            _finished: true,
+            _winnerId: 2
+        });
+        games2[1] = EsportOracle.Games({
+            _id: 2,
+            _finished: true,
+            _winnerId: 2
+        });
+        games2[2] = EsportOracle.Games({
+            _id: 3,
+            _finished: true,
+            _winnerId: 2
+        });
+
+        EsportOracle.Match[] memory matches2 = new EsportOracle.Match[](1);
+        matches2[0] = EsportOracle.Match({
+            _id: 1,
+            _opponents: opponents,
+            _game: games2,
+            _result: results,
+            _winnerId: 1,
+            _beginAt: block.timestamp
+        });
+
+        vm.prank(user1);
+        oracle.handleNewMatches(matches2);
+
+        vm.prank(user2);
+        oracle.handleNewMatches(matches2);
+
+        vm.prank(user3);
+        oracle.handleNewMatches(matches2);
+
+        EsportOracle.Match memory dataNode = oracle.getMatchById(1);
+
+        assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
+        assertEq(dataNode._game[0]._finished, true, "La valeur de finish doit etre true");
+
+        assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
+    }
 }
