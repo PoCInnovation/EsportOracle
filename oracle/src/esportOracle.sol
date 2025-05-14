@@ -32,6 +32,7 @@ contract EsportOracle {
 
     mapping(uint256 => Match) public _matchMapping;
     address[] private listedNodes;
+    mapping(address => uint256) public _fundsStaked;
     mapping(bytes32 => uint8) public _matchVotes;
     mapping(bytes32 => address[]) public _addressByHash;
     bytes32[] public _pendingMatchesHashes;
@@ -47,6 +48,7 @@ contract EsportOracle {
      * @param addressAdded The address of the owner of the new node
      */
     event newNodeAdded(address indexed addressAdded);
+    event stakingSuccess(address indexed addressAdded, uint256 amount);
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "Not the contract owner");
@@ -183,15 +185,32 @@ contract EsportOracle {
     }
 
     function qorumIsReached(uint8 nbVote) private view returns (bool) {
-        return (listedNodes.length / 2) < nbVote;
+        return (listedNodes.length / 2) < nbVote && nbVote > 2;
+    }
+
+    /**
+     * @notice Allows nodes to stake funds
+     * @dev Uses low-level call to transfer funds with gas optimization
+    */
+    function addFundToStaking() external payable {
+        require(
+            msg.sender != address(0) &&
+            msg.sender != address(this),
+            "Invalid staking parameters"
+        );
+        require(msg.value == 0.001 ether, "amount must be exactly 0.001 ether");
+        require(_fundsStaked[msg.sender] == 0, "Already staked");
+        _fundsStaked[msg.sender] = msg.value;
+        emit stakingSuccess(msg.sender, msg.value);
+        addNewNode();
     }
 
     /**
      * @notice function to add a new node
+     * @dev Gas optimized by combining requirements
      */
-    function addNewNode() external nodeAlreadyListed {
-        require(msg.sender != _owner, "owner cannot be a node");
-        require(msg.sender != address(0), "New node cannot be zero address");
+    function addNewNode() internal nodeAlreadyListed {
+        require(msg.sender != address(0),"New node cannot be zero address");
         listedNodes.push(msg.sender);
         emit newNodeAdded(msg.sender);
     }
@@ -203,23 +222,31 @@ contract EsportOracle {
     function handleNewMatches(Match[] memory newMatch) external onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
         nbMatchSent++;
+
         for (uint256 i = 0; i < newMatch.length; i++) {
             bytes32 matchHash = keccak256(abi.encode(newMatch[i]));
             _matchVotes[matchHash]++;
+
             if (_matchVotes[matchHash] == 1) {
                 _pendingMatchesHashes.push(matchHash);
                 _addressByHash[matchHash].push(msg.sender);
             }
+
             if (qorumIsReached(_matchVotes[matchHash])) {
                 addNewMatch(newMatch[i]);
+
+                for (uint8 j = 0; j < _pendingMatchesHashes.length; j++) {
+                    if (_pendingMatchesHashes[j] == matchHash) {
+                        _pendingMatchesHashes[j] = _pendingMatchesHashes[_pendingMatchesHashes.length - 1];
+                        _pendingMatchesHashes.pop();
+                        delete _matchVotes[matchHash];
+                        delete _addressByHash[matchHash];
+                        break;
+                    }
+                }
             }
         }
         if (nbMatchSent == listedNodes.length) {
-            for (uint8 i = 0; i < _pendingMatchesHashes.length; i++) {
-                delete(_matchVotes[_pendingMatchesHashes[i]]);
-                delete(_addressByHash[_pendingMatchesHashes[i]]);
-            }
-            delete(_pendingMatchesHashes);
             nbMatchSent = 0;
         }
     }

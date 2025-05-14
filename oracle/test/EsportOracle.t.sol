@@ -10,14 +10,22 @@ contract EsportOracleTest is Test {
     address public user1;
     address public user2;
     address public user3;
+    address public user4;
 
     event newNodeAdded(address indexed addressAdded);
+    event stakingSuccess(address indexed addressAdded, uint256 amount);
 
     function setUp() public {
         owner = address(this);
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
         user3 = makeAddr("user3");
+        user4 = makeAddr("user4");
+
+        vm.deal(user1, 1 ether);
+        vm.deal(user2, 1 ether);
+        vm.deal(user3, 1 ether);
+        vm.deal(user4, 1 ether);
 
         vm.prank(owner);
         oracle = new EsportOracle();
@@ -35,52 +43,53 @@ contract EsportOracleTest is Test {
         oracle.setOwner(user1);
     }
 
-    function testAddNewNode() public {
+    function testAddFundToStaking() public {
         vm.prank(user1);
-        vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, true, false, false);
+        emit stakingSuccess(user1, 0.001 ether);
         emit newNodeAdded(user1);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         address[] memory nodes = oracle.getListedNodes();
         assertEq(nodes.length, 1, "Un seul noeud doit etre ajoute");
         assertEq(nodes[0], user1, "L'adresse du noeud doit correspondre");
+        assertEq(oracle._fundsStaked(user1), 0.001 ether, "Le montant stake doit etre 0.001 ether");
     }
 
-    function testMultipleNode() public {
+    function testInvalidStakingAmount() public {
         vm.prank(user1);
-        vm.expectEmit(true, false, false, false);
+        vm.expectRevert("amount must be exactly 0.001 ether");
+        oracle.addFundToStaking{value: 0.002 ether}();
+    }
+
+    function testDoubleStaking() public {
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+
+        vm.prank(user1);
+        vm.expectRevert("Already staked");
+        oracle.addFundToStaking{value: 0.001 ether}();
+    }
+
+    function testMultipleStaking() public {
+        vm.prank(user1);
+        vm.expectEmit(true, true, false, false);
+        emit stakingSuccess(user1, 0.001 ether);
         emit newNodeAdded(user1);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user2);
-        vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, true, false, false);
+        emit stakingSuccess(user2, 0.001 ether);
         emit newNodeAdded(user2);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         address[] memory nodes = oracle.getListedNodes();
-        assertEq(nodes.length, 2, "Deux noeud seulement doivent etre ajoute");
+        assertEq(nodes.length, 2, "Deux noeuds seulement doivent etre ajoutes");
         assertEq(nodes[0], user1, "L'adresse du noeud doit correspondre");
         assertEq(nodes[1], user2, "L'adresse du noeud doit correspondre");
-    }
-
-    function testAlreadyListedNode() public {
-        vm.prank(user1);
-        vm.expectEmit(true, false, false, false);
-        emit newNodeAdded(user1);
-        oracle.addNewNode();
-
-        vm.prank(user1);
-        vm.expectRevert("Node is already listed");
-        oracle.addNewNode();
-
-        address[] memory nodes = oracle.getListedNodes();
-        assertEq(nodes.length, 1, "Un seul noeud doit etre ajoute");
-    }
-
-    function testAddNewNodeWithAddress0() public {
-        vm.prank(address(0));
-        vm.expectRevert("New node cannot be zero address");
-        oracle.addNewNode();
+        assertEq(oracle._fundsStaked(user1), 0.001 ether, "Le montant stake doit etre 0.001 ether");
+        assertEq(oracle._fundsStaked(user2), 0.001 ether, "Le montant stake doit etre 0.001 ether");
     }
 
     function testQuorumWithEnoughNode() public {
@@ -121,13 +130,16 @@ contract EsportOracleTest is Test {
         });
 
         vm.prank(user1);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user2);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user3);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
+
+        vm.prank(user4);
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user1);
         oracle.handleNewMatches(matches);
@@ -181,7 +193,7 @@ contract EsportOracleTest is Test {
             _beginAt: block.timestamp
         });
         EsportOracle.Match[] memory matches2 = new EsportOracle.Match[](1);
-        matches[0] = EsportOracle.Match({
+        matches2[0] = EsportOracle.Match({
             _id: 2,
             _opponents: opponents,
             _game: games,
@@ -191,13 +203,16 @@ contract EsportOracleTest is Test {
         });
 
         vm.prank(user1);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user2);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user3);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
+
+        vm.prank(user4);
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user1);
         oracle.handleNewMatches(matches);
@@ -205,18 +220,19 @@ contract EsportOracleTest is Test {
         vm.prank(user2);
         oracle.handleNewMatches(matches);
 
-        assertEq(oracle.getPendingMatches().length, 1, "le nombre de match doit etre de 1");
-
         vm.prank(user3);
+        oracle.handleNewMatches(matches);
+
+        vm.prank(user4);
         oracle.handleNewMatches(matches2);
 
         EsportOracle.Match memory dataNode = oracle.getMatchById(1);
-        assertEq(dataNode._id, 0, "L'ID du match doit correspondre");
+        assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
 
         dataNode = oracle.getMatchById(2);
-        assertEq(dataNode._id, 0, "L'ID du match doit correspondre");
+        assertEq(dataNode._id, 0, "L'ID du match doit etre 0 car pas assez de votes");
 
-        assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
+        assertEq(oracle.getPendingMatches().length, 1, "Le nombre de match en attente doit etre de 1");
     }
 
     function testUpdatingMatchAlreadyRegister() public {
@@ -267,13 +283,16 @@ contract EsportOracleTest is Test {
         });
 
         vm.prank(user1);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user2);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user3);
-        oracle.addNewNode();
+        oracle.addFundToStaking{value: 0.001 ether}();
+
+        vm.prank(user4);
+        oracle.addFundToStaking{value: 0.001 ether}();
 
         vm.prank(user1);
         oracle.handleNewMatches(matches);
