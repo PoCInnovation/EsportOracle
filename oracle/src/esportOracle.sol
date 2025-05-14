@@ -200,7 +200,7 @@ contract EsportOracle {
         require(newMatch.length > 0, "No match data provided");
         nbMatchSent++;
         uint8 quorum = uint8((listedNodes.length * 2) / 3);
-p
+
         for (uint256 i = 0; i < newMatch.length; i++) {
             bytes32 matchHash = keccak256(abi.encode(newMatch[i]));
             _matchVotes[matchHash]++;
