@@ -182,10 +182,6 @@ contract EsportOracle {
         return (_matchMapping[matchId]);
     }
 
-    function qorumIsReached(uint8 nbVote) private view returns (bool) {
-        return (listedNodes.length / 2) < nbVote;
-    }
-
     /**
      * @notice function to add a new node
      */
@@ -203,23 +199,26 @@ contract EsportOracle {
     function handleNewMatches(Match[] memory newMatch) external onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
         nbMatchSent++;
+        uint8 quorum = uint8((listedNodes.length * 2) / 3);
+p
         for (uint256 i = 0; i < newMatch.length; i++) {
             bytes32 matchHash = keccak256(abi.encode(newMatch[i]));
             _matchVotes[matchHash]++;
             if (_matchVotes[matchHash] == 1) {
                 _pendingMatchesHashes.push(matchHash);
-                _addressByHash[matchHash].push(msg.sender);
             }
-            if (qorumIsReached(_matchVotes[matchHash])) {
+            _addressByHash[matchHash].push(msg.sender);
+            if (_matchVotes[matchHash] > quorum) {
                 addNewMatch(newMatch[i]);
+                _matchVotes[matchHash] = 0;
             }
         }
         if (nbMatchSent == listedNodes.length) {
             for (uint8 i = 0; i < _pendingMatchesHashes.length; i++) {
-                delete(_matchVotes[_pendingMatchesHashes[i]]);
-                delete(_addressByHash[_pendingMatchesHashes[i]]);
+                delete (_matchVotes[_pendingMatchesHashes[i]]);
+                delete (_addressByHash[_pendingMatchesHashes[i]]);
             }
-            delete(_pendingMatchesHashes);
+            delete (_pendingMatchesHashes);
             nbMatchSent = 0;
         }
     }
