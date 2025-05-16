@@ -297,38 +297,30 @@ contract EsportOracle {
                 }
             }
 
-            /// Si l'adresse n'a pas encore voté, ajouter son vote
             if (!alreadyVoted)
                 _addressByHash[matchHash].push(msg.sender);
 
-            /// Si c'est le premier vote pour ce match, l'ajouter aux matches en attente
             if (_matchVotes[matchHash] == 1)
                 _pendingMatchesHashes.push(matchHash);
 
             /// Si le quorum est atteint, enregistrer le match et nettoyer les matches en attente
             if (qorumIsReached(_matchVotes[matchHash])) {
-                /// Ajouter le match validé à la blockchain
                 addNewMatch(newMatch[i]);
-                                for (uint8 j = 0; j < _pendingMatchesHashes.length; j++) {
+                for (uint8 j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
-
-                    if (currentHash == matchHash) {
-                        /// C'est le hash du match validé, le supprimer
-                        delete _matchVotes[matchHash];
-                        delete _addressByHash[matchHash];
-                    } else {
+                    if (currentHash != matchHash) {
                         address[] memory invalidVoters = _addressByHash[currentHash];
                         for (uint8 k = 0; k < invalidVoters.length; k++) {
                             if (!_nodeViolations[invalidVoters[k]].isBanned)
                                 punishNode(invalidVoters[k], _addressByHash[matchHash]);
                         }
-                        /// Nettoyer les données associées à ce hash
                         delete _matchVotes[currentHash];
                         delete _addressByHash[currentHash];
                     }
                 }
-                /// Réinitialiser la liste des matches en attente
+                delete _matchVotes[matchHash];
+                delete _addressByHash[matchHash];
                 delete _pendingMatchesHashes;
             }
         }
