@@ -186,29 +186,26 @@ contract EsportOracle {
      * @notice Fonction pour punir un nœud qui a soumis des données incorrectes
      * @param node Adresse du nœud à punir
      */
-    function punishNode(address node) internal {
+    function punishNode(address node, address[] memory correctVoters) internal {
         require(_fundsStaked[node] > 0, "Node has no staked funds");
 
         _nodeViolations[node].incorrectMatches++;
-        
-        // Si le nœud atteint le maximum de violations, le bannir
+
+        uint256 correctVotersLen = correctVoters.length;
         if (_nodeViolations[node].incorrectMatches >= MAX_VIOLATIONS) {
-            // Marquer le nœud comme banni
             _nodeViolations[node].isBanned = true;
             emit NodeBanned(node);
 
             uint256 amountToSlash = _fundsStaked[node];
             _fundsStaked[node] = 0;
 
-            // Calculer combien de nœuds vont recevoir des fonds
-            uint256 numOtherNodes = listedNodes.length - 1;
-
             deleteNode(node);
-            // Distribuer les fonds aux autres nœuds
-            if (numOtherNodes > 0) {
-                uint256 amountPerNode = amountToSlash / numOtherNodes;
-                for (uint i = 0; i < listedNodes.length; i++) {
-                    _fundsStaked[listedNodes[i]] += amountPerNode;
+            // Distribuer les fonds aux autres nœuds - optimisé pour réduire le gas
+            if (correctVotersLen > 0) {
+                uint256 amountPerNode = amountToSlash / correctVotersLen;
+                for (uint i = 0; i < correctVotersLen;) {
+                    _fundsStaked[correctVoters[i]] += amountPerNode;
+                    unchecked { ++i; }
                 }
             }
         } else {
@@ -216,27 +213,18 @@ contract EsportOracle {
             uint256 amountToSlash = PUNISHMENT_AMOUNT;
             require(_fundsStaked[node] >= amountToSlash, "Insufficient staked funds");
 
-            // Prélever une partie des fonds stakés
             _fundsStaked[node] -= amountToSlash;
 
-            // Émettre l'événement de punition
             emit NodePunished(node, amountToSlash, _nodeViolations[node].incorrectMatches);
 
-            // Calculer le nombre de noeuds restants
-            uint256 remainingNodes = 0;
-            for (uint i = 0; i < listedNodes.length; i++) {
-                if (listedNodes[i] != node) {
-                    remainingNodes++;
-                }
-            }
-
             // Distribuer les fonds aux autres nœuds
-            if (remainingNodes > 0) {
-                uint256 amountPerNode = amountToSlash / remainingNodes;
-                for (uint i = 0; i < listedNodes.length; i++) {
-                    if (listedNodes[i] != node) {
-                        _fundsStaked[listedNodes[i]] += amountPerNode;
-                    }
+            if (correctVotersLen > 0) {
+                uint256 amountPerNode = amountToSlash / correctVotersLen;
+
+                // Utilisation d'une boucle non-vérifiée pour économiser du gas
+                for (uint i = 0; i < correctVotersLen;) {
+                    _fundsStaked[correctVoters[i]] += amountPerNode;
+                    unchecked { ++i; }
                 }
             }
         }
@@ -256,11 +244,19 @@ contract EsportOracle {
         uint256 amountToSlash = _fundsStaked[node];
         _fundsStaked[node] = 0;
 
-        /// Ajouter la fonctionnalité de redistribution des fonds stakés aux autres nœuds bienveillants
-        for (uint i = 0; i < listedNodes.length; i++) {
-            if (listedNodes[i] != node) {
-                uint256 amountToDistribute = amountToSlash / (listedNodes.length - 1);
-                _fundsStaked[listedNodes[i]] += amountToDistribute;
+        /// Redistribution des fonds optimisée pour réduire le gas
+        uint256 remainingNodes = listedNodes.length - 1;
+        if (remainingNodes > 0) {
+            // Calcul d'une seule fois et stockage dans une variable
+            uint256 amountToDistribute = amountToSlash / remainingNodes;
+            
+            // Utilisation d'une boucle non-vérifiée pour économiser du gas
+            for (uint i = 0; i < listedNodes.length;) {
+                if (listedNodes[i] != node) {
+                    _fundsStaked[listedNodes[i]] += amountToDistribute;
+                }
+                // Incrémentation non-vérifiée pour économiser du gas
+                unchecked { ++i; }
             }
         }
         deleteNode(node);
@@ -316,16 +312,16 @@ contract EsportOracle {
                                 for (uint8 j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
+
                     if (currentHash == matchHash) {
                         /// C'est le hash du match validé, le supprimer
                         delete _matchVotes[matchHash];
                         delete _addressByHash[matchHash];
                     } else {
-                        /// C'est un hash différent, punir les nœuds qui ont voté pour lui
                         address[] memory invalidVoters = _addressByHash[currentHash];
                         for (uint8 k = 0; k < invalidVoters.length; k++) {
                             if (!_nodeViolations[invalidVoters[k]].isBanned)
-                                punishNode(invalidVoters[k]);
+                                punishNode(invalidVoters[k], _addressByHash[matchHash]);
                         }
                         /// Nettoyer les données associées à ce hash
                         delete _matchVotes[currentHash];
