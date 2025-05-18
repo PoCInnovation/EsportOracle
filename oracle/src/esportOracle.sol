@@ -220,7 +220,6 @@ contract EsportOracle {
             // Distribuer les fonds aux autres nœuds
             if (correctVotersLen > 0) {
                 uint256 amountPerNode = amountToSlash / correctVotersLen;
-
                 // Utilisation d'une boucle non-vérifiée pour économiser du gas
                 for (uint i = 0; i < correctVotersLen;) {
                     _fundsStaked[correctVoters[i]] += amountPerNode;
@@ -247,9 +246,8 @@ contract EsportOracle {
         /// Redistribution des fonds optimisée pour réduire le gas
         uint256 remainingNodes = listedNodes.length - 1;
         if (remainingNodes > 0) {
-            // Calcul d'une seule fois et stockage dans une variable
             uint256 amountToDistribute = amountToSlash / remainingNodes;
-            
+
             // Utilisation d'une boucle non-vérifiée pour économiser du gas
             for (uint i = 0; i < listedNodes.length;) {
                 if (listedNodes[i] != node) {
@@ -406,7 +404,7 @@ contract EsportOracle {
             }
         }
     }
-    
+
     /**
      * @notice returns the match by id
      * @param matchId The id of the match
@@ -416,7 +414,7 @@ contract EsportOracle {
     function getMatchById(uint256 matchId) external view returns (Match memory) {
         return (_matchMapping[matchId]);
     }
-    
+
     /**
      * @notice function to return the list pending match hash
      * @return The list of hashes
