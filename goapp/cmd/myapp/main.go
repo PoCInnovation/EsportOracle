@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"src/internal/client"
 	"src/internal/service"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func main() {
