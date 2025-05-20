@@ -1,3 +1,6 @@
 [submodule "oracle/lib/forge-std"]
 	path = oracle/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "oracle/lib/openzeppelin-contracts"]
+	path = oracle/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
