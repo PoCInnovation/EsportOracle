@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"os"
+	"github.com/joho/godotenv"
 	"fmt"
 	"log"
 	"math/big"
@@ -14,22 +16,48 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-var Infura = "Url_Client_ETH"
+type Config_t struct {
+	Url_Client	string
+	Private_Key string
+	Contract_Address string
+	Chain_Id *big.Int
+}
+
+func load_Env() Config_t {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Erreur chargement .env:", err)
+	}
+	chain_ID := os.Getenv("CHAIN_ID")
+	private_Key := os.Getenv("PRIVATE_KEY")
+	contractAddress := os.Getenv("CONTRACT_ADDRESS")
+	client_ETH := os.Getenv("CLIENT_ETH")
+	new_chain_ID, err := new(big.Int).SetString(chain_ID, 10)
+	if !err {
+		log.Fatal("Chain_ID invalid")
+	}
+	return Config_t{
+		Url_Client: client_ETH,
+		Private_Key: private_Key,
+		Contract_Address: contractAddress,
+		Chain_Id: new_chain_ID,
+	}
+}
 
 func store_Match(match_info models.Match) {
-	client, err := ethclient.Dial(Infura)
+	config := load_Env()
+	client, err := ethclient.Dial(config.Url_Client)
 	if err != nil {
 		log.Fatal("Erreur par rapport la clé privé: ", err)
 	}
-	private_Key, err := crypto.HexToECDSA("clé_privé_ici")
+	private_Key, err := crypto.HexToECDSA(config.Private_Key)
 	if err != nil {
 		log.Fatal("Erreur dans le chargement de la clé privée: ", err)
 	}
-	auth, err := bind.NewKeyedTransactorWithChainID(private_Key, big.NewInt(1))
+	auth, err := bind.NewKeyedTransactorWithChainID(private_Key, config.Chain_Id)
 	if err != nil {
 		log.Fatal("Erreur authentification: ", err)
 	}
-	contractAddress := common.HexToAddress("0xAdressContract")
+	contractAddress := common.HexToAddress(config.Contract_Address)
 	instance, err := contract.NewContract(contractAddress, client)
 	if err != nil {
 		log.Fatal("Erreur du contract :", err)
@@ -38,8 +66,8 @@ func store_Match(match_info models.Match) {
 	games := convert_Games(match_info.Games)
 	opponents := convert_Opponents(match_info.Opponents)
 	beginAt := big.NewInt(0)
-	if res_time, err := time.Parse(time.RFC3339, match_info.BeginAt); err == nil {
-		beginAt = big.NewInt((res_time.Unix()))
+	if t, err := time.Parse(time.RFC3339, match_info.BeginAt); err == nil {
+		beginAt = big.NewInt((t.Unix()))
 	}
 	match := contract.EsportOracleMatch{
 		Id: big.NewInt(int64(match_info.ID)),
