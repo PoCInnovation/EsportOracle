@@ -19,10 +19,10 @@ contract EsportOracleTest is Test {
 
     function setUp() public {
         owner = address(this);
-        user1 = makeAddr("user1");
-        user2 = makeAddr("user2");
-        user3 = makeAddr("user3");
-        user4 = makeAddr("user4");
+        user1 = makeAddr("Alice");
+        user2 = makeAddr("Bob");
+        user3 = makeAddr("Charlie");
+        user4 = makeAddr("Dave");
 
         vm.deal(user1, 1 ether);
         vm.deal(user2, 1 ether);
@@ -36,7 +36,7 @@ contract EsportOracleTest is Test {
     function testOwnership() public {
         assertEq(oracle._owner(), owner, "Le proprietaire initial doit etre l'adresse du deploiement");
 
-        address newOwner = makeAddr("newOwner");
+        address newOwner = makeAddr("NouveauProprietaire");
         oracle.setOwner(newOwner);
         assertEq(oracle._owner(), newOwner, "Le proprietaire doit etre mis a jour");
 
@@ -45,7 +45,106 @@ contract EsportOracleTest is Test {
         oracle.setOwner(user1);
     }
 
+    function testPauseFunctionality() public {
+        console.log("Test de la mise en pause du contrat");
+        
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        console.log("Mise en pause du contrat par le proprietaire");
+        oracle.pause();
+        
+        console.log("Verification qu'un nouvel utilisateur ne peut pas faire de staking");
+        vm.startPrank(user2);
+        bool success = false;
+        try oracle.addFundToStaking{value: 0.001 ether}() {
+            success = true;
+        } catch {}
+        vm.stopPrank();
+        assertFalse(success, "Le staking devrait echouer quand le contrat est en pause");
+        
+        console.log("Verification qu'un utilisateur ne peut pas retirer ses fonds");
+        vm.startPrank(user1);
+        success = false;
+        try oracle.withdrawStake() {
+            success = true;
+        } catch {}
+        vm.stopPrank();
+        assertFalse(success, "Le retrait devrait echouer quand le contrat est en pause");
+        
+        console.log("Verification qu'un noeud ne peut pas envoyer de donnees de match");
+        EsportOracle.Match[] memory matchData = prepareSampleMatch();
+        
+        vm.startPrank(user1);
+        success = false;
+        try oracle.handleNewMatches(matchData) {
+            success = true;
+        } catch {}
+        vm.stopPrank();
+        assertFalse(success, "L'envoi de donnees devrait echouer quand le contrat est en pause");
+        
+        console.log("Verification qu'un utilisateur normal ne peut pas desactiver la pause");
+        vm.prank(user1);
+        vm.expectRevert("Not the contract owner");
+        oracle.unpause();
+        
+        console.log("Desactivation de la pause par le proprietaire");
+        oracle.unpause();
+        
+        console.log("Verification que le staking fonctionne apres desactivation de la pause");
+        vm.prank(user2);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        assertEq(oracle._fundsStaked(user2), 0.001 ether, "Le staking doit fonctionner apres desactivation de la pause");
+        
+        console.log("Verification que l'envoi de donnees fonctionne apres desactivation de la pause");
+        vm.prank(user1);
+        oracle.handleNewMatches(matchData);
+        
+        console.log("Verification que le retrait fonctionne apres desactivation de la pause");
+        uint256 balanceBefore = user2.balance;
+        vm.prank(user2);
+        oracle.withdrawStake();
+        assertEq(user2.balance, balanceBefore + 0.001 ether, "Le retrait doit fonctionner apres desactivation de la pause");
+    }
+    
+    function testPausePermissions() public {
+        console.log("Test des permissions de mise en pause");
+        
+        console.log("Verification qu'un utilisateur normal ne peut pas mettre en pause");
+        vm.prank(user1);
+        vm.expectRevert("Not the contract owner");
+        oracle.pause();
+        
+        console.log("Le proprietaire met en pause");
+        oracle.pause();
+        
+        console.log("Verification qu'un utilisateur normal ne peut pas desactiver la pause");
+        vm.prank(user1);
+        vm.expectRevert("Not the contract owner");
+        oracle.unpause();
+        
+        console.log("Le proprietaire desactive la pause");
+        oracle.unpause();
+        
+        console.log("Transfert de propriete et verification des nouvelles permissions");
+        oracle.setOwner(user3);
+        
+        console.log("Verification que l'ancien proprietaire ne peut plus mettre en pause");
+        vm.expectRevert("Not the contract owner");
+        oracle.pause();
+        
+        console.log("Le nouveau proprietaire met en pause");
+        vm.prank(user3);
+        oracle.pause();
+        
+        console.log("Le nouveau proprietaire desactive la pause");
+        vm.prank(user3);
+        oracle.unpause();
+    }
+
     function testAddFundToStaking() public {
+        console.log("Test d'ajout de fonds au staking");
+        
         vm.prank(user1);
         vm.expectEmit(true, true, false, false);
         emit stakingSuccess(user1, 0.001 ether);
@@ -56,315 +155,184 @@ contract EsportOracleTest is Test {
         assertEq(nodes.length, 1, "Un seul noeud doit etre ajoute");
         assertEq(nodes[0], user1, "L'adresse du noeud doit correspondre");
         assertEq(oracle._fundsStaked(user1), 0.001 ether, "Le montant stake doit etre 0.001 ether");
+        
+        console.log("Staking reussi pour", vm.toString(user1));
     }
 
     function testInvalidStakingAmount() public {
+        console.log("Test de staking avec un montant invalide");
+        
         vm.prank(user1);
         vm.expectRevert("amount must be exactly 0.001 ether");
         oracle.addFundToStaking{value: 0.002 ether}();
+        
+        console.log("Rejet correct du montant invalide");
     }
 
     function testDoubleStaking() public {
+        console.log("Test de double staking par le meme utilisateur");
+        
         vm.prank(user1);
         oracle.addFundToStaking{value: 0.001 ether}();
+        console.log("Premier staking reussi pour", vm.toString(user1));
 
         vm.prank(user1);
         vm.expectRevert("Already staked");
         oracle.addFundToStaking{value: 0.001 ether}();
+        
+        console.log("Deuxieme staking correctement rejete");
     }
 
     function testMultipleStaking() public {
+        console.log("Test de staking par plusieurs utilisateurs");
+        
         vm.prank(user1);
         vm.expectEmit(true, true, false, false);
         emit stakingSuccess(user1, 0.001 ether);
         emit newNodeAdded(user1);
         oracle.addFundToStaking{value: 0.001 ether}();
+        console.log("Staking reussi pour Alice");
 
         vm.prank(user2);
         vm.expectEmit(true, true, false, false);
         emit stakingSuccess(user2, 0.001 ether);
         emit newNodeAdded(user2);
         oracle.addFundToStaking{value: 0.001 ether}();
+        console.log("Staking reussi pour Bob");
 
         address[] memory nodes = oracle.getListedNodes();
         assertEq(nodes.length, 2, "Deux noeuds seulement doivent etre ajoutes");
-        assertEq(nodes[0], user1, "L'adresse du noeud doit correspondre");
-        assertEq(nodes[1], user2, "L'adresse du noeud doit correspondre");
-        assertEq(oracle._fundsStaked(user1), 0.001 ether, "Le montant stake doit etre 0.001 ether");
-        assertEq(oracle._fundsStaked(user2), 0.001 ether, "Le montant stake doit etre 0.001 ether");
+        assertEq(oracle._fundsStaked(user1), 0.001 ether, "Le montant stake d'Alice doit etre 0.001 ether");
+        assertEq(oracle._fundsStaked(user2), 0.001 ether, "Le montant stake de Bob doit etre 0.001 ether");
     }
 
     function testQuorumWithEnoughNode() public {
-        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
-        opponents[0] = EsportOracle.Opponents({
-            _acronym: "TA",
-            _id: 1,
-            _name: "Team A"
-        });
-        opponents[1] = EsportOracle.Opponents({
-            _acronym: "TB",
-            _id: 2,
-            _name: "Team B"
-        });
-        EsportOracle.Games[] memory games = new EsportOracle.Games[](1);
-        games[0] = EsportOracle.Games({
-            _id: 1,
-            _finished: true,
-            _winnerId: 1
-        });
-        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
-        results[0] = EsportOracle.Result({
-            _score: 3,
-            _teamId: 1
-        });
-        results[1] = EsportOracle.Result({
-            _score: 1,
-            _teamId: 2
-        });
-        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
-        matches[0] = EsportOracle.Match({
-            _id: 1,
-            _opponents: opponents,
-            _game: games,
-            _result: results,
-            _winnerId: 1,
-            _beginAt: block.timestamp
-        });
+        console.log("Test de quorum avec suffisamment de noeuds");
+        
+        EsportOracle.Match[] memory matches = prepareSampleMatch();
 
-        vm.prank(user1);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user2);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user3);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user4);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
+        addFourTestNodes();
+        
+        console.log("Soumission du match par Alice");
         vm.prank(user1);
         oracle.handleNewMatches(matches);
 
+        console.log("Soumission du match par Bob");
         vm.prank(user2);
         oracle.handleNewMatches(matches);
 
+        console.log("Soumission du match par Charlie");
         vm.prank(user3);
         oracle.handleNewMatches(matches);
-
+        
+        console.log("Verification que le match a ete enregistre");
         EsportOracle.Match memory dataNode = oracle.getMatchById(1);
         assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
 
-        assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
+        assertEq(oracle.getPendingMatches().length, 0, "Il ne doit pas y avoir de matchs en attente");
     }
 
     function testQuorumWithEnoughSameMatch() public {
-        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
-        opponents[0] = EsportOracle.Opponents({
-            _acronym: "TA",
-            _id: 1,
-            _name: "Team A"
-        });
-        opponents[1] = EsportOracle.Opponents({
-            _acronym: "TB",
-            _id: 2,
-            _name: "Team B"
-        });
-        EsportOracle.Games[] memory games = new EsportOracle.Games[](1);
-        games[0] = EsportOracle.Games({
-            _id: 1,
-            _finished: true,
-            _winnerId: 1
-        });
-        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
-        results[0] = EsportOracle.Result({
-            _score: 3,
-            _teamId: 1
-        });
-        results[1] = EsportOracle.Result({
-            _score: 1,
-            _teamId: 2
-        });
-        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
-        matches[0] = EsportOracle.Match({
-            _id: 1,
-            _opponents: opponents,
-            _game: games,
-            _result: results,
-            _winnerId: 1,
-            _beginAt: block.timestamp
-        });
-        EsportOracle.Match[] memory matches2 = new EsportOracle.Match[](1);
-        matches2[0] = EsportOracle.Match({
-            _id: 2,
-            _opponents: opponents,
-            _game: games,
-            _result: results,
-            _winnerId: 2,
-            _beginAt: block.timestamp
-        });
+        console.log("Test de quorum avec differents matchs soumis");
+        
+        EsportOracle.Match[] memory matches1 = prepareSampleMatch();
+        
+        EsportOracle.Match[] memory matches2 = prepareSampleMatch();
+        matches2[0]._id = 2;
+        matches2[0]._winnerId = 2;
 
+        addFourTestNodes();
+        
+        console.log("Alice soumet le match 1");
         vm.prank(user1);
-        oracle.addFundToStaking{value: 0.001 ether}();
+        oracle.handleNewMatches(matches1);
 
+        console.log("Bob soumet le match 1");
         vm.prank(user2);
-        oracle.addFundToStaking{value: 0.001 ether}();
+        oracle.handleNewMatches(matches1);
 
+        console.log("Charlie soumet le match 1");
         vm.prank(user3);
-        oracle.addFundToStaking{value: 0.001 ether}();
+        oracle.handleNewMatches(matches1);
 
-        vm.prank(user4);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user1);
-        oracle.handleNewMatches(matches);
-
-        vm.prank(user2);
-        oracle.handleNewMatches(matches);
-
-        vm.prank(user3);
-        oracle.handleNewMatches(matches);
-
+        console.log("Dave soumet le match 2");
         vm.prank(user4);
         oracle.handleNewMatches(matches2);
 
+        console.log("Verification que seul le match avec quorum a ete enregistre");
         EsportOracle.Match memory dataNode = oracle.getMatchById(1);
-        assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
+        assertEq(dataNode._id, 1, "Le match 1 doit etre enregistre");
 
         dataNode = oracle.getMatchById(2);
-        assertEq(dataNode._id, 0, "L'ID du match doit etre 0 car pas assez de votes");
+        assertEq(dataNode._id, 0, "Le match 2 ne doit pas etre enregistre (pas assez de votes)");
 
-        assertEq(oracle.getPendingMatches().length, 1, "Le nombre de match en attente doit etre de 1");
+        assertEq(oracle.getPendingMatches().length, 1, "Il doit y avoir 1 match en attente");
     }
 
     function testUpdatingMatchAlreadyRegister() public {
+        console.log("Test de mise a jour d'un match deja enregistre");
+        
         EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
-        opponents[0] = EsportOracle.Opponents({
-            _acronym: "TA",
-            _id: 1,
-            _name: "Team A"
-        });
-        opponents[1] = EsportOracle.Opponents({
-            _acronym: "TB",
-            _id: 2,
-            _name: "Team B"
-        });
-        EsportOracle.Games[] memory games = new EsportOracle.Games[](3);
-        games[0] = EsportOracle.Games({
-            _id: 1,
-            _finished: false,
-            _winnerId: 0
-        });
-        games[1] = EsportOracle.Games({
-            _id: 2,
-            _finished: false,
-            _winnerId: 0
-        });
-        games[2] = EsportOracle.Games({
-            _id: 3,
-            _finished: false,
-            _winnerId: 0
-        });
+        opponents[0] = EsportOracle.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
+        opponents[1] = EsportOracle.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
+        
+        EsportOracle.Games[] memory initialGames = new EsportOracle.Games[](3);
+        initialGames[0] = EsportOracle.Games({_id: 1, _finished: false, _winnerId: 0});
+        initialGames[1] = EsportOracle.Games({_id: 2, _finished: false, _winnerId: 0});
+        initialGames[2] = EsportOracle.Games({_id: 3, _finished: false, _winnerId: 0});
+        
         EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
-        results[0] = EsportOracle.Result({
-            _score: 3,
-            _teamId: 1
-        });
-        results[1] = EsportOracle.Result({
-            _score: 1,
-            _teamId: 2
-        });
-        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
-        matches[0] = EsportOracle.Match({
-            _id: 1,
-            _opponents: opponents,
-            _game: games,
-            _result: results,
-            _winnerId: 1,
-            _beginAt: block.timestamp
+        results[0] = EsportOracle.Result({_score: 3, _teamId: 1});
+        results[1] = EsportOracle.Result({_score: 1, _teamId: 2});
+        
+        EsportOracle.Match[] memory initialMatch = new EsportOracle.Match[](1);
+        initialMatch[0] = EsportOracle.Match({
+            _id: 1, _opponents: opponents, _game: initialGames, _result: results, _winnerId: 1, _beginAt: block.timestamp
         });
 
+        addFourTestNodes();
+        
+        console.log("Soumission initiale du match avec jeux non termines");
         vm.prank(user1);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
+        oracle.handleNewMatches(initialMatch);
         vm.prank(user2);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
+        oracle.handleNewMatches(initialMatch);
         vm.prank(user3);
-        oracle.addFundToStaking{value: 0.001 ether}();
+        oracle.handleNewMatches(initialMatch);
 
-        vm.prank(user4);
-        oracle.addFundToStaking{value: 0.001 ether}();
+        EsportOracle.Games[] memory updatedGames = new EsportOracle.Games[](3);
+        updatedGames[0] = EsportOracle.Games({_id: 1, _finished: true, _winnerId: 2});
+        updatedGames[1] = EsportOracle.Games({_id: 2, _finished: true, _winnerId: 2});
+        updatedGames[2] = EsportOracle.Games({_id: 3, _finished: true, _winnerId: 2});
 
+        EsportOracle.Match[] memory updatedMatch = new EsportOracle.Match[](1);
+        updatedMatch[0] = EsportOracle.Match({
+            _id: 1, _opponents: opponents, _game: updatedGames, _result: results, _winnerId: 1, _beginAt: block.timestamp
+        });
+
+        console.log("Soumission de la mise a jour du match avec jeux termines");
         vm.prank(user1);
-        oracle.handleNewMatches(matches);
-
+        oracle.handleNewMatches(updatedMatch);
         vm.prank(user2);
-        oracle.handleNewMatches(matches);
-
+        oracle.handleNewMatches(updatedMatch);
         vm.prank(user3);
-        oracle.handleNewMatches(matches);
+        oracle.handleNewMatches(updatedMatch);
 
-        EsportOracle.Games[] memory games2 = new EsportOracle.Games[](3);
-        games2[0] = EsportOracle.Games({
-            _id: 1,
-            _finished: true,
-            _winnerId: 2
-        });
-        games2[1] = EsportOracle.Games({
-            _id: 2,
-            _finished: true,
-            _winnerId: 2
-        });
-        games2[2] = EsportOracle.Games({
-            _id: 3,
-            _finished: true,
-            _winnerId: 2
-        });
-
-        EsportOracle.Match[] memory matches2 = new EsportOracle.Match[](1);
-        matches2[0] = EsportOracle.Match({
-            _id: 1,
-            _opponents: opponents,
-            _game: games2,
-            _result: results,
-            _winnerId: 1,
-            _beginAt: block.timestamp
-        });
-
-        vm.prank(user1);
-        oracle.handleNewMatches(matches2);
-
-        vm.prank(user2);
-        oracle.handleNewMatches(matches2);
-
-        vm.prank(user3);
-        oracle.handleNewMatches(matches2);
-
+        console.log("Verification que le match a ete mis a jour correctement");
         EsportOracle.Match memory dataNode = oracle.getMatchById(1);
-
         assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
-        assertEq(dataNode._game[0]._finished, true, "La valeur de finish doit etre true");
+        assertEq(dataNode._game[0]._finished, true, "Le jeu doit etre marque comme termine");
+        assertEq(dataNode._game[0]._winnerId, 2, "L'ID du gagnant doit etre mis a jour");
 
-        assertEq(oracle.getPendingMatches().length, 0, "le nombre de match doit etre de 0");
+        assertEq(oracle.getPendingMatches().length, 0, "Il ne doit pas y avoir de matchs en attente");
     }
 
-    // Test of the ban system after multiple violations
     function testBanAfterMultipleViolations() public {
-        // Add 4 nodes
-        vm.prank(user1);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user2);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user3);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        vm.prank(user4);
-        oracle.addFundToStaking{value: 0.001 ether}();
-
-        // Prepare matches for testing
+        console.log("Test du systeme de bannissement apres violations repetees");
+        
+        addFourTestNodes();
+        console.log("4 noeuds ajoutes au systeme");
+        
         EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
         opponents[0] = EsportOracle.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
         opponents[1] = EsportOracle.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
@@ -376,7 +344,6 @@ contract EsportOracleTest is Test {
         results[0] = EsportOracle.Result({_score: 3, _teamId: 1});
         results[1] = EsportOracle.Result({_score: 1, _teamId: 2});
         
-        // Correct matches with different IDs
         EsportOracle.Match[] memory correctMatch1 = new EsportOracle.Match[](1);
         correctMatch1[0] = EsportOracle.Match({
             _id: 1, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: 1
@@ -392,7 +359,6 @@ contract EsportOracleTest is Test {
             _id: 3, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: 1
         });
         
-        // Incorrect matches
         EsportOracle.Games[] memory incorrectGames = new EsportOracle.Games[](1);
         incorrectGames[0] = EsportOracle.Games({_id: 1, _finished: false, _winnerId: 2});
         
@@ -411,7 +377,6 @@ contract EsportOracleTest is Test {
             _id: 3, _opponents: opponents, _game: incorrectGames, _result: results, _winnerId: 2, _beginAt: 1
         });
         
-        // First cycle - First violation
         vm.prank(user4);
         oracle.handleNewMatches(incorrectMatch1);
         
@@ -424,13 +389,11 @@ contract EsportOracleTest is Test {
         vm.prank(user3);
         oracle.handleNewMatches(correctMatch1);
         
-        // Verify first violation
         (uint256 violations, bool banned) = oracle._nodeViolations(user4);
         assertEq(violations, 1, "After 1 violation, counter should be 1");
         assertEq(banned, false, "Node should not be banned yet");
         assertEq(oracle._fundsStaked(user4), 0.0009 ether, "Balance should be reduced after 1 violation");
         
-        // Second cycle - Second violation
         vm.prank(user4);
         oracle.handleNewMatches(incorrectMatch2);
         
@@ -443,13 +406,11 @@ contract EsportOracleTest is Test {
         vm.prank(user3);
         oracle.handleNewMatches(correctMatch2);
         
-        // Verify second violation
         (violations, banned) = oracle._nodeViolations(user4);
         assertEq(violations, 2, "After 2 violations, counter should be 2");
         assertEq(banned, false, "Node should still not be banned");
         assertEq(oracle._fundsStaked(user4), 0.0008 ether, "Balance should be reduced after 2 violations");
         
-        // Third cycle - Third violation and expected ban
         vm.prank(user4);
         oracle.handleNewMatches(incorrectMatch3);
         
@@ -459,13 +420,11 @@ contract EsportOracleTest is Test {
         vm.prank(user2);
         oracle.handleNewMatches(correctMatch3);
         
-        // Set up event capture
         vm.recordLogs();
         
         vm.prank(user3);
         oracle.handleNewMatches(correctMatch3);
         
-        // Verify NodeBanned event was emitted
         Vm.Log[] memory entries = vm.getRecordedLogs();
         bool eventFound = false;
         
@@ -480,85 +439,66 @@ contract EsportOracleTest is Test {
         
         assertTrue(eventFound, "NodeBanned event must be emitted");
         
-        // Verify ban status
         (violations, banned) = oracle._nodeViolations(user4);
         assertEq(violations, 3, "After 3 violations, counter should be 3");
         assertEq(banned, true, "Node should be banned after 3 violations");
         assertEq(oracle._fundsStaked(user4), 0, "Balance should be 0 after ban");
         
-        // Verify banned node cannot submit matches
         vm.prank(user4);
         vm.expectRevert("Node is banned");
         oracle.handleNewMatches(correctMatch1);
     }
-    
-    // Test des fonctions administratives
+
     function testAdminFunctions() public {
-        // Ajouter 2 noeuds
         vm.prank(user1);
         oracle.addFundToStaking{value: 0.001 ether}();
         
         vm.prank(user2);
         oracle.addFundToStaking{value: 0.001 ether}();
         
-        // Test de la fonction banNode
         vm.expectEmit(true, false, false, false);
         emit NodeBanned(user1);
 
         oracle.banNode(user1);
 
-        // Verifier le bannissement
         (uint256 violations, bool banned) = oracle._nodeViolations(user1);
         assertEq(banned, true, "Le noeud doit etre banni");
         assertEq(oracle._fundsStaked(user1), 0, "Les fonds doivent etre confisques");
         
-        // Verifier que le noeud banni ne peut plus soumettre de matches
         vm.prank(user1);
         vm.expectRevert("Node is banned");
         oracle.handleNewMatches(new EsportOracle.Match[](1));
         
-        // Test de la fonction rehabilitateNode
         oracle.rehabilitateNode(user1);
         
-        // Verifier la rehabilitation
         (violations, banned) = oracle._nodeViolations(user1);
         assertEq(banned, false, "Le noeud ne doit plus etre banni apres rehabilitation");
         assertEq(violations, 0, "Le compteur de violations doit etre remis a zero");
         
-        // Le noeud rehabilite doit refaire un staking pour participer
         vm.prank(user1);
         vm.expectRevert("Node is not listed, please call addNewNode function to register a new node");
         oracle.handleNewMatches(new EsportOracle.Match[](1));
     }
-    
-    // Test de la fonction de retrait des fonds
+
     function testWithdrawStake() public {
-        // Ajouter un noeud
         vm.prank(user1);
         oracle.addFundToStaking{value: 0.001 ether}();
         
-        // Verifier le solde initial
         assertEq(oracle._fundsStaked(user1), 0.001 ether, "Le solde initial doit etre 0.001 ether");
         
-        // Enregistrer le solde ETH avant le retrait
         uint256 balanceBefore = user1.balance;
         
-        // Retirer les fonds
         vm.prank(user1);
         oracle.withdrawStake();
         
-        // Verifier que les fonds ont ete retires
         assertEq(oracle._fundsStaked(user1), 0, "Le solde doit etre a 0 apres retrait");
         assertEq(user1.balance, balanceBefore + 0.001 ether, "L'ETH doit etre retourne a l'utilisateur");
         
-        // Verifier que le noeud a ete retire de la liste
         address[] memory nodes = oracle.getListedNodes();
         assertEq(nodes.length, 0, "La liste des noeuds doit etre vide apres retrait");
     }
-    
-    // Test de la redistribution des fonds apres bannissement
+
     function testFundsRedistribution() public {
-        // Ajouter 4 noeuds
         vm.prank(user1);
         oracle.addFundToStaking{value: 0.001 ether}();
         
@@ -571,15 +511,47 @@ contract EsportOracleTest is Test {
         vm.prank(user4);
         oracle.addFundToStaking{value: 0.001 ether}();
         
-        // Bannir un noeud directement
         oracle.banNode(user1);
         
-        // Verifier que les fonds ont ete redistribues aux autres noeuds
-        uint256 expectedShare = uint256(0.001 ether) / 3;  // Divise par 3 noeuds restants
+        uint256 expectedShare = uint256(0.001 ether) / 3;
         
         assertEq(oracle._fundsStaked(user1), 0, "Le noeud banni doit avoir un solde de 0");
         assertEq(oracle._fundsStaked(user2), 0.001 ether + expectedShare, "Le noeud doit recevoir sa part");
         assertEq(oracle._fundsStaked(user3), 0.001 ether + expectedShare, "Le noeud doit recevoir sa part");
         assertEq(oracle._fundsStaked(user4), 0.001 ether + expectedShare, "Le noeud doit recevoir sa part");
+    }
+
+    function prepareSampleMatch() internal view returns (EsportOracle.Match[] memory) {
+        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
+        opponents[0] = EsportOracle.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
+        opponents[1] = EsportOracle.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
+        
+        EsportOracle.Games[] memory games = new EsportOracle.Games[](1);
+        games[0] = EsportOracle.Games({_id: 1, _finished: true, _winnerId: 1});
+        
+        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
+        results[0] = EsportOracle.Result({_score: 3, _teamId: 1});
+        results[1] = EsportOracle.Result({_score: 1, _teamId: 2});
+        
+        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
+        matches[0] = EsportOracle.Match({
+            _id: 1, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: block.timestamp
+        });
+        
+        return matches;
+    }
+
+    function addFourTestNodes() internal {
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        vm.prank(user2);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        vm.prank(user3);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        vm.prank(user4);
+        oracle.addFundToStaking{value: 0.001 ether}();
     }
 }
