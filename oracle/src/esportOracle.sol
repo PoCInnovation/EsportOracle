@@ -121,7 +121,7 @@ contract EsportOracle {
             msg.sender != address(this),
             "Invalid staking parameters"
         );
-        require(msg.value == STAKING_AMOUNT, "amount must be exactly 0.001 ether");
+        require(msg.value == 0.001 ether, "amount must be exactly 0.001 ether");
         _fundsStaked[msg.sender] = msg.value;
         emit stakingSuccess(msg.sender, msg.value);
         addNewNode();
