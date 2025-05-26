@@ -6,9 +6,9 @@ import (
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
+	"src/internal/contract"
 
 	"src/internal/client"
-	"src/internal/models"
 )
 
 type MatchService struct {
@@ -55,7 +55,7 @@ func (s *MatchService) FetchAndUpdateOracle() error {
 
 	log.Printf("Fetched %d matches from PandaScore API\n", len(matches))
 
-	var contractMatches []models.ContractMatch
+	var contractMatches []contract.EsportOracleMatch
 	for _, match := range matches {
 		contractMatch := match.ToContractMatch()
 		contractMatches = append(contractMatches, contractMatch)
