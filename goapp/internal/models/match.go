@@ -2,6 +2,7 @@ package models
 
 import (
 	"math/big"
+	"src/internal/contract"
 	"time"
 )
 
@@ -39,36 +40,10 @@ type Result struct {
 	TeamID int `json:"team_id"`
 }
 
-type ContractMatch struct {
-	ID        *big.Int         `json:"_id"`
-	Opponents []ContractTeam   `json:"_opponents"`
-	Games     []ContractGame   `json:"_game"`
-	Results   []ContractResult `json:"_result"`
-	WinnerID  *big.Int         `json:"_winnerId"`
-	BeginAt   *big.Int         `json:"_beginAt"`
-}
-
-type ContractTeam struct {
-	Acronym string   `json:"_acronym"`
-	ID      *big.Int `json:"_id"`
-	Name    string   `json:"_name"`
-}
-
-type ContractGame struct {
-	ID       *big.Int `json:"_id"`
-	Finished bool     `json:"_finished"`
-	WinnerID *big.Int `json:"_winnerId"`
-}
-
-type ContractResult struct {
-	Score  uint8    `json:"_score"`
-	TeamID *big.Int `json:"_teamId"`
-}
-
-func (m *Match) ToContractMatch() ContractMatch {
-	contractMatch := ContractMatch{
-		ID:       big.NewInt(int64(m.ID)),
-		WinnerID: big.NewInt(int64(m.WinnerID)),
+func (m *Match) ToContractMatch() contract.EsportOracleMatch {
+	contractMatch := contract.EsportOracleMatch{
+		Id:       big.NewInt(int64(m.ID)),
+		WinnerId: big.NewInt(int64(m.WinnerID)),
 	}
 
 	if t, err := time.Parse(time.RFC3339, m.BeginAt); err == nil {
@@ -79,9 +54,9 @@ func (m *Match) ToContractMatch() ContractMatch {
 
 	for _, opp := range m.Opponents {
 		team := opp.Opponent
-		contractMatch.Opponents = append(contractMatch.Opponents, ContractTeam{
+		contractMatch.Opponents = append(contractMatch.Opponents, contract.EsportOracleOpponents{
 			Acronym: team.Acronym,
-			ID:      big.NewInt(int64(team.ID)),
+			Id:      big.NewInt(int64(team.ID)),
 			Name:    team.Name,
 		})
 	}
@@ -92,17 +67,17 @@ func (m *Match) ToContractMatch() ContractMatch {
 			winnerId = big.NewInt(int64(*game.Winner.ID))
 		}
 
-		contractMatch.Games = append(contractMatch.Games, ContractGame{
-			ID:       big.NewInt(int64(game.ID)),
+		contractMatch.Game = append(contractMatch.Game, contract.EsportOracleGames{
+			Id:       big.NewInt(int64(game.ID)),
 			Finished: game.Finished,
-			WinnerID: winnerId,
+			WinnerId: winnerId,
 		})
 	}
 
 	for _, result := range m.Results {
-		contractMatch.Results = append(contractMatch.Results, ContractResult{
+		contractMatch.Result = append(contractMatch.Result, contract.EsportOracleResult{
 			Score:  uint8(result.Score),
-			TeamID: big.NewInt(int64(result.TeamID)),
+			TeamId: big.NewInt(int64(result.TeamID)),
 		})
 	}
 	return contractMatch
