@@ -11,7 +11,6 @@ import (
 	"github.com/joho/godotenv"
 	"src/internal/client"
 	"src/internal/service"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func main() {
@@ -22,9 +21,10 @@ func main() {
 	}
 
 	pandaToken := getEnvOrExit("PANDASCORE_API_TOKEN", "API token for PandaScore is required")
-	rpcURL := getEnvOrExit("ETHEREUM_RPC_URL", "Ethereum RPC URL is required")
+	rpcURL := getEnvOrExit("CLIENT_ETH", "Ethereum RPC URL is required")
 	contractAddr := getEnvOrExit("CONTRACT_ADDRESS", "Contract address is required")
 	privateKey := getEnvOrExit("PRIVATE_KEY", "Private key is required")
+	chainID := getEnvOrExit("CHAIN_ID", "Chain ID is required")
 
 	cronSchedule := os.Getenv("CRON_SCHEDULE")
 	if cronSchedule == "" {
@@ -33,21 +33,21 @@ func main() {
 
 	pandaClient := client.NewPandaScoreClient(pandaToken)
 
-	ethereumClient, err := client.NewEthereumClient(rpcURL, contractAddr, privateKey)
+	ethereumClient, err := client.NewEthereumClient(rpcURL, contractAddr, privateKey, chainID)
 	if err != nil {
-		log.Fatalf("client.NewEthereumClient(rpcURL, contractAddr, privateKey): %w", err)
+		log.Fatalf("client.NewEthereumClient(rpcURL, contractAddr, privateKey): %v", err)
 	}
 
 	matchService := service.NewMatchService(pandaClient, ethereumClient)
 
 	fmt.Println("Running initial update")
 	if err := matchService.RunOnce(); err != nil {
-		log.Printf("Warning: matchService.RunOnce(): %w", err)
+		log.Printf("Warning: matchService.RunOnce(): %v", err)
 	}
 
 	fmt.Println("Starting scheduler...")
 	if err := matchService.StartScheduler(cronSchedule); err != nil {
-		log.Fatalf("matchService.StartScheduler(cronSchedule): %w", err)
+		log.Fatalf("matchService.StartScheduler(cronSchedule): %v", err)
 	}
 
 	fmt.Println("Service running !")
