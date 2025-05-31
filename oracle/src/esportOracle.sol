@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract EsportOracle {
+import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
+
+contract EsportOracle is Pausable {
     address public _owner;
 
     struct Result {
@@ -43,7 +45,7 @@ contract EsportOracle {
     mapping(bytes32 => address[]) public _addressByHash;
     bytes32[] public _pendingMatchesHashes;
     uint8 nbMatchSent;
-    
+
     // Nouvelles variables pour le système de punition
     mapping(address => NodeViolation) public _nodeViolations;
     uint256 public constant MAX_VIOLATIONS = 3;
@@ -109,13 +111,29 @@ contract EsportOracle {
         _owner = newOwner;
     }
 
+    /**
+     * @notice Permet au propriétaire de mettre le contrat en pause
+     * @dev Utilise le modificateur onlyOwner et la fonction _pause de Pausable
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Permet au propriétaire de sortir le contrat de l'état de pause
+     * @dev Utilise le modificateur onlyOwner et la fonction _unpause de Pausable
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     //////////////// STAKING FUNCTIONS ////////////////
 
     /**
      * @notice Allows nodes to stake funds
      * @dev Uses low-level call to transfer funds with gas optimization
     */
-    function addFundToStaking() external payable notBanned(msg.sender) nodeAlreadyStake {
+    function addFundToStaking() external payable whenNotPaused notBanned(msg.sender) nodeAlreadyStake {
         require(
             msg.sender != address(0) &&
             msg.sender != address(this),
@@ -130,7 +148,7 @@ contract EsportOracle {
     /**
      * @notice Fonction permettant à un nœud de retirer ses fonds s'il n'est pas banni
      */
-    function withdrawStake() external notBanned(msg.sender) {
+    function withdrawStake() external whenNotPaused notBanned(msg.sender) {
         uint256 amount = _fundsStaked[msg.sender];
         require(amount > 0, "No funds to withdraw");
 
@@ -277,7 +295,7 @@ contract EsportOracle {
      * @notice function called by listed nodes only, to register new matches
      * @param newMatch : a list of matches to register
      */
-    function handleNewMatches(Match[] memory newMatch) external notBanned(msg.sender) onlyListedNodes {
+    function handleNewMatches(Match[] memory newMatch) external whenNotPaused notBanned(msg.sender) onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
         nbMatchSent++;
 
