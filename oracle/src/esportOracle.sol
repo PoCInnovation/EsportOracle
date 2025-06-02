@@ -46,7 +46,9 @@ contract EsportOracle is Pausable {
     bytes32[] public _pendingMatchesHashes;
     uint8 nbMatchSent;
 
-    // Nouvelles variables pour le système de punition
+    mapping(uint256 => bytes32[]) public _matchIdToHashes;
+    mapping(bytes32 => uint256) public _hashToMatchId;
+
     mapping(address => NodeViolation) public _nodeViolations;
     uint256 public constant MAX_VIOLATIONS = 3;
     uint256 public constant PUNISHMENT_AMOUNT = 0.0001 ether;
@@ -302,6 +304,22 @@ contract EsportOracle is Pausable {
         for (uint256 i = 0; i < newMatch.length; i++) {
             bytes32 matchHash = keccak256(abi.encode(newMatch[i]));
             bool alreadyVoted = false;
+            uint256 matchId = newMatch[i]._id;
+
+            // Associer le hash à l'ID du match
+            _hashToMatchId[matchHash] = matchId;
+
+            // Ajouter le hash à la liste des hashs pour cet ID de match
+            bool hashExists = false;
+            for (uint j = 0; j < _matchIdToHashes[matchId].length; j++) {
+                if (_matchIdToHashes[matchId][j] == matchHash) {
+                    hashExists = true;
+                    break;
+                }
+            }
+            if (!hashExists) {
+                _matchIdToHashes[matchId].push(matchHash);
+            }
 
             _matchVotes[matchHash]++;
 
@@ -321,23 +339,63 @@ contract EsportOracle is Pausable {
 
             /// Si le quorum est atteint, enregistrer le match et nettoyer les matches en attente
             if (qorumIsReached(_matchVotes[matchHash])) {
+                uint256 validMatchId = newMatch[i]._id;
                 addNewMatch(newMatch[i]);
-                for (uint8 j = 0; j < _pendingMatchesHashes.length; j++) {
+
+                for (uint j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
                     if (currentHash != matchHash) {
-                        address[] memory invalidVoters = _addressByHash[currentHash];
-                        for (uint8 k = 0; k < invalidVoters.length; k++) {
-                            if (!_nodeViolations[invalidVoters[k]].isBanned)
-                                punishNode(invalidVoters[k], _addressByHash[matchHash]);
+                        // Vérifier si le hash actuel appartient au même match ID
+                        // C'est un vrai conflit seulement si les hashs différents concernent le même ID de match
+                        uint256 currentMatchId = _hashToMatchId[currentHash];
+                        bool isConflictingMatch = (currentMatchId == validMatchId && currentMatchId != 0);
+
+                        address[] memory votersForCurrentHash = _addressByHash[currentHash];
+
+                        if (isConflictingMatch) {
+                            // C'est un vrai conflit - punir les nœuds qui ont voté pour la version incorrecte
+                            for (uint k = 0; k < votersForCurrentHash.length; k++) {
+                                if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
+                                    punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
+                                }
+                            }
                         }
+                        // Nettoyer les données dans tous les cas
                         delete _matchVotes[currentHash];
                         delete _addressByHash[currentHash];
                     }
                 }
+                // Nettoyer les données du hash validé
                 delete _matchVotes[matchHash];
                 delete _addressByHash[matchHash];
+                // Reconstruire le tableau _pendingMatchesHashes sans les hashs supprimés
+                bytes32[] memory newPendingHashes = new bytes32[](_pendingMatchesHashes.length - 1);
+                uint256 newIndex = 0;
+
+                for (uint p = 0; p < _pendingMatchesHashes.length; p++) {
+                    if (_pendingMatchesHashes[p] != matchHash) {
+                        newPendingHashes[newIndex] = _pendingMatchesHashes[p];
+                        newIndex++;
+                    }
+                }
+
+                // Mettre à jour le tableau des hashs en attente
                 delete _pendingMatchesHashes;
+                for (uint p = 0; p < newIndex; p++) {
+                    _pendingMatchesHashes.push(newPendingHashes[p]);
+                }
+
+                // Nettoyer les hashs obsolètes pour ce match ID
+                for (uint m = 0; m < _matchIdToHashes[validMatchId].length; m++) {
+                    bytes32 hashToCheck = _matchIdToHashes[validMatchId][m];
+                    if (hashToCheck != matchHash) {
+                        delete _hashToMatchId[hashToCheck];
+                    }
+                }
+                // Ne conserver que le hash validé pour ce match ID
+                delete _matchIdToHashes[validMatchId];
+                _matchIdToHashes[validMatchId].push(matchHash);
             }
         }
 
