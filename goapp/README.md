@@ -52,7 +52,7 @@ $ go run cmd/myapp/main.go
 ### 6. View the Pending Matches Sent to the Smart Contract
 
 ```shell
-$ cast call "your_private_key" "getPendingMatches()(bytes32[])"
+$ cast call "contract_address" "getPendingMatches()(bytes32[])"
 ```
 
 ### Help
