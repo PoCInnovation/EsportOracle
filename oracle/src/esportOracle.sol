@@ -337,7 +337,6 @@ contract EsportOracle is Pausable {
             if (_matchVotes[matchHash] == 1)
                 _pendingMatchesHashes.push(matchHash);
 
-            /// Si le quorum est atteint, enregistrer le match et nettoyer les matches en attente
             if (qorumIsReached(_matchVotes[matchHash])) {
                 uint256 validMatchId = newMatch[i]._id;
                 addNewMatch(newMatch[i]);
@@ -346,30 +345,25 @@ contract EsportOracle is Pausable {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
                     if (currentHash != matchHash) {
-                        // Vérifier si le hash actuel appartient au même match ID
-                        // C'est un vrai conflit seulement si les hashs différents concernent le même ID de match
                         uint256 currentMatchId = _hashToMatchId[currentHash];
                         bool isConflictingMatch = (currentMatchId == validMatchId && currentMatchId != 0);
 
                         address[] memory votersForCurrentHash = _addressByHash[currentHash];
 
                         if (isConflictingMatch) {
-                            // C'est un vrai conflit - punir les nœuds qui ont voté pour la version incorrecte
                             for (uint k = 0; k < votersForCurrentHash.length; k++) {
                                 if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
                                     punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
                                 }
                             }
                         }
-                        // Nettoyer les données dans tous les cas
                         delete _matchVotes[currentHash];
                         delete _addressByHash[currentHash];
                     }
                 }
-                // Nettoyer les données du hash validé
                 delete _matchVotes[matchHash];
                 delete _addressByHash[matchHash];
-                // Reconstruire le tableau _pendingMatchesHashes sans les hashs supprimés
+
                 bytes32[] memory newPendingHashes = new bytes32[](_pendingMatchesHashes.length - 1);
                 uint256 newIndex = 0;
 
