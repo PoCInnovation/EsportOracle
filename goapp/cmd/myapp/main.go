@@ -40,6 +40,20 @@ func main() {
 
 	matchService := service.NewMatchService(pandaClient, ethereumClient)
 
+	err = ethereumClient.ListenToMatchRequested(func(event client.MatchRequestedEvent) {
+		fmt.Printf("   Event MatchRequested called\n")
+		fmt.Printf("   Request ID: %s\n", event.RequestId.String())
+		fmt.Printf("   Match ID: %s\n", event.MatchId.String())
+		fmt.Printf("   Requester: %s\n", event.Requester.Hex())
+		fmt.Printf("   Fee: %s\n", event.Fee.String())
+		
+		// TODO: event processing logic
+		
+	})
+	if err != nil {
+		log.Fatalf("Failed to start event listener: %v", err)
+	}
+
 	fmt.Println("Running initial update")
 	if err := matchService.RunOnce(); err != nil {
 		log.Printf("Warning: matchService.RunOnce(): %v", err)
