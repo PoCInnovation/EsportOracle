@@ -321,8 +321,6 @@ contract EsportOracle is Pausable {
                 _matchIdToHashes[matchId].push(matchHash);
             }
 
-            _matchVotes[matchHash]++;
-
             /// Vérifier si l'adresse a déjà voté pour ce match
             for (uint j = 0; j < _addressByHash[matchHash].length; j++) {
                 if (_addressByHash[matchHash][j] == msg.sender) {
@@ -331,13 +329,16 @@ contract EsportOracle is Pausable {
                 }
             }
 
-            if (!alreadyVoted)
+            // Incrémenter les votes seulement si le nœud n'a pas déjà voté
+            if (!alreadyVoted) {
+                _matchVotes[matchHash]++;
                 _addressByHash[matchHash].push(msg.sender);
+            }
 
             if (_matchVotes[matchHash] == 1)
                 _pendingMatchesHashes.push(matchHash);
 
-            if (qorumIsReached(_matchVotes[matchHash])) {
+            if (quorumIsReached(_matchVotes[matchHash])) {
                 uint256 validMatchId = newMatch[i]._id;
                 addNewMatch(newMatch[i]);
 
@@ -499,7 +500,13 @@ contract EsportOracle is Pausable {
      * @param nbVote Nombre de votes reçus pour un match
      * @return true si le quorum est atteint, false sinon
      */
-    function qorumIsReached(uint8 nbVote) private view returns (bool) {
-        return (listedNodes.length / 2) < nbVote && nbVote > 2;
+    function quorumIsReached(uint8 nbVote) private view returns (bool) {
+        if (listedNodes.length <= 2) {
+            return nbVote >= listedNodes.length; // Tous les nœuds doivent voter si 2 ou moins
+        } else if (listedNodes.length == 3) {
+            return nbVote >= 2; // Au moins 2 votes sur 3
+        } else {
+            return nbVote > (listedNodes.length / 2); // Majorité simple pour 4+ nœuds
+        }
     }
 }
