@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -153,6 +154,10 @@ func (e *EthereumClient) Close() {
 	}
 }
 
+func (e *EthereumClient) GetPublicAddress() common.Address {
+	return crypto.PubkeyToAddress(e.privateKey.PublicKey)
+}
+
 func (e *EthereumClient) ListenToMatchRequested(handler EventHandler) error {
 
 	matchRequestedABI := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"requestId","type":"uint256"},{"indexed":true,"name":"matchId","type":"uint256"},{"indexed":true,"name":"requester","type":"address"},{"indexed":false,"name":"fee","type":"uint256"}],"name":"MatchRequested","type":"event"}]`
@@ -167,15 +172,19 @@ func (e *EthereumClient) ListenToMatchRequested(handler EventHandler) error {
 		Topics:    [][]common.Hash{{contractABI.Events["MatchRequested"].ID}},
 	}
 
+	// Try WebSocket subscription first
 	logs := make(chan types.Log)
-
 	ctx := context.Background()
 	sub, err := e.client.SubscribeFilterLogs(ctx, query, logs)
+	
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to logs: %w", err)
+		log.Printf("WebSocket subscription failed (%v), falling back to polling", err)
+		// Fallback to polling
+		go e.pollForEvents(query, contractABI, handler)
+		return nil
 	}
 
-
+	// WebSocket subscription successful
 	go func() {
 		defer sub.Unsubscribe()
 
@@ -197,6 +206,57 @@ func (e *EthereumClient) ListenToMatchRequested(handler EventHandler) error {
 	}()
 
 	return nil
+}
+
+// pollForEvents polls for events using FilterLogs instead of subscriptions
+func (e *EthereumClient) pollForEvents(query ethereum.FilterQuery, contractABI abi.ABI, handler EventHandler) {
+	lastBlock := uint64(0)
+	
+	// Get current block number
+	currentBlock, err := e.client.BlockNumber(context.Background())
+	if err != nil {
+		log.Printf("Failed to get current block number: %v", err)
+		return
+	}
+	lastBlock = currentBlock
+
+	ticker := time.NewTicker(5 * time.Second) // Poll every 5 seconds
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Get current block number
+		currentBlock, err := e.client.BlockNumber(context.Background())
+		if err != nil {
+			log.Printf("Failed to get current block number: %v", err)
+			continue
+		}
+
+		if currentBlock > lastBlock {
+			// Set query range from last processed block to current block
+			query.FromBlock = big.NewInt(int64(lastBlock + 1))
+			query.ToBlock = big.NewInt(int64(currentBlock))
+
+			// Get logs for this range
+			logs, err := e.client.FilterLogs(context.Background(), query)
+			if err != nil {
+				log.Printf("Failed to filter logs: %v", err)
+				continue
+			}
+
+			// Process each log
+			for _, vLog := range logs {
+				event, err := e.decodeMatchRequestedEvent(vLog, contractABI)
+				if err != nil {
+					log.Printf("Error decoding event: %v", err)
+					continue
+				}
+
+				handler(event)
+			}
+
+			lastBlock = currentBlock
+		}
+	}
 }
 
 func (e *EthereumClient) decodeMatchRequestedEvent(vLog types.Log, contractABI abi.ABI) (MatchRequestedEvent, error) {

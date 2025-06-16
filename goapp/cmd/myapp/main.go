@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
 	"src/internal/client"
 	"src/internal/service"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -40,15 +42,40 @@ func main() {
 
 	matchService := service.NewMatchService(pandaClient, ethereumClient)
 
+	// Check if node is already registered and has funds staked
+	fmt.Println("Checking node registration status...")
+	publicKey := ethereumClient.GetPublicAddress()
+	fundsStaked, err := ethereumClient.GetFundsStaked(publicKey)
+	if err != nil {
+		log.Printf("Warning: Could not check staked funds: %v", err)
+	} else if fundsStaked.Cmp(big.NewInt(0)) == 0 {
+		fmt.Println("Node not registered. Registering node by staking funds...")
+		stakeAmount := big.NewInt(1000000000000000) // 0.001 ETH in wei
+		if err := ethereumClient.AddFundsToStaking(stakeAmount); err != nil {
+			log.Printf("Warning: Failed to stake funds and register node: %v", err)
+			log.Println("Node may not be registered for oracle participation")
+		} else {
+			fmt.Println("Successfully staked funds and registered as oracle node")
+		}
+	} else {
+		fmt.Printf("Node already registered with %s wei staked\n", fundsStaked.String())
+	}
+
 	err = ethereumClient.ListenToMatchRequested(func(event client.MatchRequestedEvent) {
 		fmt.Printf("   Event MatchRequested called\n")
 		fmt.Printf("   Request ID: %s\n", event.RequestId.String())
 		fmt.Printf("   Match ID: %s\n", event.MatchId.String())
 		fmt.Printf("   Requester: %s\n", event.Requester.Hex())
 		fmt.Printf("   Fee: %s\n", event.Fee.String())
-		
+
 		// TODO: event processing logic
-		
+		// fmt.Println("   Event MatchRequested processed successfully")
+		// match, err := pandaClient.GetMatchByID(int(event.MatchId.Int64()))
+		// if err != nil {
+		// 	fmt.Printf("   Error fetching match by ID: %v\n", err)
+		// } else {
+		// 	fmt.Printf("   Match fetched: %+v\n", match)
+		// }
 	})
 	if err != nil {
 		log.Fatalf("Failed to start event listener: %v", err)
