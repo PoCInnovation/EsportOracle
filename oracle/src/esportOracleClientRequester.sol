@@ -22,7 +22,6 @@ contract EsportOracleClientRequester is EsportOracleRequester {
     function receiveMatch(uint256 matchId) payable external returns (uint256) {
         require(oracle.isMatchRequested(matchId) == false, "Match already requested");
         requestId = oracle.requestMatch{value: msg.value}(matchId);
-        //trop tôt pour le mettre le match en fulfilled ?
         oracle.markRequestsFulfilled(matchId);
         return requestId;
     }
@@ -43,6 +42,4 @@ contract EsportOracleClientRequester is EsportOracleRequester {
     function showPendingRequestedMatches() external view returns (uint256[] memory) {
         return (oracle.getPendingRequestedMatches());
     }
-    //faire fonction fulfill pour mettre à true le match requested.
-
 }
