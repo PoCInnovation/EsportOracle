@@ -29,7 +29,6 @@ type EthereumClient struct {
 	contract        *contract.Contract
 }
 
-// MatchRequestedEvent représente l'événement MatchRequested
 type MatchRequestedEvent struct {
 	RequestId *big.Int
 	MatchId   *big.Int
@@ -37,7 +36,6 @@ type MatchRequestedEvent struct {
 	Fee       *big.Int
 }
 
-// EventHandler définit le type de fonction pour gérer les événements
 type EventHandler func(event MatchRequestedEvent)
 
 func NewEthereumClient(rpcURL, contractAddr, privateKeyHex, chainIDString string) (*EthereumClient, error) {
@@ -172,19 +170,16 @@ func (e *EthereumClient) ListenToMatchRequested(handler EventHandler) error {
 		Topics:    [][]common.Hash{{contractABI.Events["MatchRequested"].ID}},
 	}
 
-	// Try WebSocket subscription first
 	logs := make(chan types.Log)
 	ctx := context.Background()
 	sub, err := e.client.SubscribeFilterLogs(ctx, query, logs)
 	
 	if err != nil {
 		log.Printf("WebSocket subscription failed (%v), falling back to polling", err)
-		// Fallback to polling
 		go e.pollForEvents(query, contractABI, handler)
 		return nil
 	}
 
-	// WebSocket subscription successful
 	go func() {
 		defer sub.Unsubscribe()
 
@@ -208,11 +203,9 @@ func (e *EthereumClient) ListenToMatchRequested(handler EventHandler) error {
 	return nil
 }
 
-// pollForEvents polls for events using FilterLogs instead of subscriptions
 func (e *EthereumClient) pollForEvents(query ethereum.FilterQuery, contractABI abi.ABI, handler EventHandler) {
 	lastBlock := uint64(0)
 	
-	// Get current block number
 	currentBlock, err := e.client.BlockNumber(context.Background())
 	if err != nil {
 		log.Printf("Failed to get current block number: %v", err)
@@ -220,11 +213,10 @@ func (e *EthereumClient) pollForEvents(query ethereum.FilterQuery, contractABI a
 	}
 	lastBlock = currentBlock
 
-	ticker := time.NewTicker(5 * time.Second) // Poll every 5 seconds
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		// Get current block number
 		currentBlock, err := e.client.BlockNumber(context.Background())
 		if err != nil {
 			log.Printf("Failed to get current block number: %v", err)
@@ -232,18 +224,15 @@ func (e *EthereumClient) pollForEvents(query ethereum.FilterQuery, contractABI a
 		}
 
 		if currentBlock > lastBlock {
-			// Set query range from last processed block to current block
 			query.FromBlock = big.NewInt(int64(lastBlock + 1))
 			query.ToBlock = big.NewInt(int64(currentBlock))
 
-			// Get logs for this range
 			logs, err := e.client.FilterLogs(context.Background(), query)
 			if err != nil {
 				log.Printf("Failed to filter logs: %v", err)
 				continue
 			}
 
-			// Process each log
 			for _, vLog := range logs {
 				event, err := e.decodeMatchRequestedEvent(vLog, contractABI)
 				if err != nil {
