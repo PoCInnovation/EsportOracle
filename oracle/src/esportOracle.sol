@@ -350,7 +350,7 @@ contract EsportOracle is Pausable {
      * @notice add match blockchain
      * @param newMatch a tab of a Match
      */
-    function addNewMatch(Match memory newMatch) internal {
+    function addNewMatch(Match memory newMatch) internal returns (Match memory) {
         uint256 matchId = newMatch._id;
 
         // SECTION 1: INITIAL MATCH CREATION
@@ -378,7 +378,7 @@ contract EsportOracle is Pausable {
                 Result memory result = newMatch._result[j];
                 _matchMapping[matchId]._result.push(result);
             }
-            return;
+            return _matchMapping[matchId];
         }
 
         // SECTION 2: UPDATE WINNER ID
@@ -421,6 +421,7 @@ contract EsportOracle is Pausable {
                 _matchMapping[matchId]._opponents.push(opponent);
             }
         }
+        return (_matchMapping[matchId]);
     }
 
     /**

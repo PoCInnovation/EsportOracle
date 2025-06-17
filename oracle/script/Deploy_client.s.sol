@@ -4,12 +4,14 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "../src/esportOracle.sol";
 import "../src/esportOracleClientRequester.sol";
-contract DeploySellManager is Script {
+
+contract DeployClient is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        EsportOracle esportOracle = new EsportOracle();
+        EsportOracleRequester requester = new EsportOracleRequester();
+        EsportOracleClientRequester esportOracle = new EsportOracleClientRequester(address(requester));
 
         vm.stopBroadcast();
 
