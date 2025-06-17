@@ -68,15 +68,16 @@ func main() {
 		fmt.Printf("   Requester: %s\n", event.Requester.Hex())
 		fmt.Printf("   Fee: %s\n", event.Fee.String())
 
-		// TODO: event processing logic
-		// fmt.Println("   Event MatchRequested processed successfully")
-		// match, err := pandaClient.GetMatchByID(int(event.MatchId.Int64()))
-		// if err != nil {
-		// 	fmt.Printf("   Error fetching match by ID: %v\n", err)
-		// } else {
-		// 	fmt.Printf("   Match fetched: %+v\n", match)
-		// }
+		fmt.Println("   Event MatchRequested processed successfully")
+		
+		if err := matchService.GetMatchByIDAndSendToContract(int(event.MatchId.Int64())); err != nil {
+			fmt.Printf("   Error processing match by ID: %v\n", err)
+		} else {
+			fmt.Printf("   Match successfully fetched and sent to contract\n")
+		}
+		
 	})
+
 	if err != nil {
 		log.Fatalf("Failed to start event listener: %v", err)
 	}

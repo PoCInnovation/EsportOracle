@@ -21,8 +21,8 @@ func NewPandaScoreClient(apiToken string) *PandaScoreClient {
 	}
 }
 
-func (c *PandaScoreClient) GetMatchByID(matchID int) ([]models.Match, error) {
-	url := fmt.Sprintf("%s/csgo/matches/%d", c.BaseURL, matchID)
+func (c *PandaScoreClient) GetMatchByID(matchID int) (*models.Match, error) {
+	url := fmt.Sprintf("%s/matches/%d", c.BaseURL, matchID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -47,12 +47,12 @@ func (c *PandaScoreClient) GetMatchByID(matchID int) ([]models.Match, error) {
 		return nil, fmt.Errorf("io.ReadAll(res.Body): %w", err)
 	}
 
-	var matches []models.Match
-	if err := json.Unmarshal(body, &matches); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(body, &matches): %w", err)
+	var match models.Match
+	if err := json.Unmarshal(body, &match); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal(body, &match): %w", err)
 	}
 
-	return matches, nil
+	return &match, nil
 }
 
 func (c *PandaScoreClient) GetUpcomingMatches() ([]models.Match, error) {

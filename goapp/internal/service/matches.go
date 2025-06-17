@@ -124,3 +124,41 @@ func (s *MatchService) RunOnce() error {
 	log.Println("Running one time update")
 	return s.FetchAndUpdateOracle()
 }
+
+func (s *MatchService) GetMatchByIDAndSendToContract(matchID int) error {
+	match, err := s.pandaClient.GetMatchByID(matchID)
+	if err != nil {
+		return fmt.Errorf("s.pandaClient.GetMatchByID(%d): %w", matchID, err)
+	}
+
+	log.Printf("Fetched match #%d from PandaScore API\n", match.ID)
+
+	contractMatch := match.ToContractMatch()
+
+	log.Printf("Match #%d: %d opponents, %d games, %d results, begins at %s\n",
+		match.ID,
+		len(match.Opponents),
+		len(match.Games),
+		len(match.Results),
+		match.BeginAt)
+
+	contractFile := fmt.Sprintf("contract_match_%d.json", matchID)
+	contractJSON, err := json.MarshalIndent(contractMatch, "", "  ")
+	if err != nil {
+		log.Printf("Warning: failed to marshal match to JSON: %v", err)
+	} else {
+		if err := os.WriteFile(contractFile, contractJSON, 0644); err != nil {
+			log.Printf("Warning: failed to save match to file: %v", err)
+		} else {
+			log.Printf("Contract match data saved to %s\n", contractFile)
+		}
+	}
+
+	contractMatches := []contract.EsportOracleMatch{contractMatch}
+	if err := s.ethereumClient.SendMatchesToContract(contractMatches); err != nil {
+		return fmt.Errorf("s.ethereumClient.SendMatchesToContract: %w", err)
+	}
+
+	log.Printf("Successfully sent match #%d to the contract\n", match.ID)
+	return nil
+}
