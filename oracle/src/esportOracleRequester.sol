@@ -2,21 +2,24 @@
 pragma solidity ^0.8.20;
 
 import "./esportOracle.sol";
+import "./matchRequest.sol";
+interface InterfaceOracle {
+    function requestMatch(uint256 matchId) external payable returns (uint256);
+    function getMatchRequest(uint256 requestId) external view returns (lib.MatchRequest memory);
+    function isMatchRequested(uint256 matchId) external view returns (bool);
+    function markRequestsFulfilled(uint256 matchId) external;
+    function getPendingRequestedMatches() external view returns (uint256[] memory);
+}
 
 contract EsportOracleRequester is EsportOracle {
-    // Struct to represent a match request
-    struct MatchRequest {
-        uint256 matchId;
-        address requester;
-        uint256 fee;
-        bool fulfilled;
-    }
+    // Use to library MatchRequest
+    using lib for lib.MatchRequest;
 
     // Counter for request IDs
     uint256 private _requestCounter;
 
     // Mapping to store match requests
-    mapping(uint256 => MatchRequest) public _matchRequests;
+    mapping(uint256 => lib.MatchRequest) public _matchRequests;
 
     // Minimum fee required to request a match
     uint256 public constant MIN_REQUEST_FEE = 0.0001 ether;
@@ -40,7 +43,7 @@ contract EsportOracleRequester is EsportOracle {
         _requestCounter++;
         uint256 requestId = _requestCounter;
 
-        _matchRequests[requestId] = MatchRequest({
+        _matchRequests[requestId] = lib.MatchRequest({
             matchId: matchId,
             requester: msg.sender,
             fee: msg.value,
@@ -54,11 +57,16 @@ contract EsportOracleRequester is EsportOracle {
 
     /**
      * @notice Get the details of a match request by its ID
-     * @param requestId Id of the request
+     * @param matchId Id of the request
      * @return MatchRequest struct containing the details of the request
      */
-    function getMatchRequest(uint256 requestId) external view returns (MatchRequest memory) {
-        return _matchRequests[requestId];
+    function getMatchRequest(uint256 matchId) external view returns (lib.MatchRequest memory) {
+        for (uint256 i = 1; i <= _requestCounter; i++) {
+            if (_matchRequests[i].matchId == matchId) {
+                return _matchRequests[i];
+            }
+        }
+        return lib.MatchRequest(0, address(0), 0, false);
     }
 
     /**
@@ -79,7 +87,7 @@ contract EsportOracleRequester is EsportOracle {
      * @notice Mark a match request as fulfilled
      * @param matchId Id of the match to mark as fulfilled
      */
-    function markRequestsFulfilled(uint256 matchId) external onlyOwner {
+    function markRequestsFulfilled(uint256 matchId) external {
         for (uint256 i = 1; i <= _requestCounter; i++) {
             if (_matchRequests[i].matchId == matchId && !_matchRequests[i].fulfilled) {
                 _matchRequests[i].fulfilled = true;
@@ -109,7 +117,7 @@ contract EsportOracleRequester is EsportOracle {
                 index++;
             }
         }
-        
+
         return pendingMatches;
     }
 }
