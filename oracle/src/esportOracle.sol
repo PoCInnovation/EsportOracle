@@ -46,7 +46,9 @@ contract EsportOracle is Pausable {
     bytes32[] public _pendingMatchesHashes;
     uint8 nbMatchSent;
 
-    // Nouvelles variables pour le système de punition
+    mapping(uint256 => bytes32[]) public _matchIdToHashes;
+    mapping(bytes32 => uint256) public _hashToMatchId;
+
     mapping(address => NodeViolation) public _nodeViolations;
     uint256 public constant MAX_VIOLATIONS = 3;
     uint256 public constant PUNISHMENT_AMOUNT = 0.0001 ether;
@@ -302,10 +304,21 @@ contract EsportOracle is Pausable {
         for (uint256 i = 0; i < newMatch.length; i++) {
             bytes32 matchHash = keccak256(abi.encode(newMatch[i]));
             bool alreadyVoted = false;
+            uint256 matchId = newMatch[i]._id;
 
-            _matchVotes[matchHash]++;
+            _hashToMatchId[matchHash] = matchId;
 
-            /// Vérifier si l'adresse a déjà voté pour ce match
+            bool hashExists = false;
+            for (uint j = 0; j < _matchIdToHashes[matchId].length; j++) {
+                if (_matchIdToHashes[matchId][j] == matchHash) {
+                    hashExists = true;
+                    break;
+                }
+            }
+            if (!hashExists) {
+                _matchIdToHashes[matchId].push(matchHash);
+            }
+
             for (uint j = 0; j < _addressByHash[matchHash].length; j++) {
                 if (_addressByHash[matchHash][j] == msg.sender) {
                     alreadyVoted = true;
@@ -313,23 +326,33 @@ contract EsportOracle is Pausable {
                 }
             }
 
-            if (!alreadyVoted)
+            if (!alreadyVoted) {
+                _matchVotes[matchHash]++;
                 _addressByHash[matchHash].push(msg.sender);
+            }
 
             if (_matchVotes[matchHash] == 1)
                 _pendingMatchesHashes.push(matchHash);
 
-            /// Si le quorum est atteint, enregistrer le match et nettoyer les matches en attente
-            if (qorumIsReached(_matchVotes[matchHash])) {
+            if (quorumIsReached(_matchVotes[matchHash])) {
+                uint256 validMatchId = newMatch[i]._id;
                 addNewMatch(newMatch[i]);
-                for (uint8 j = 0; j < _pendingMatchesHashes.length; j++) {
+
+                for (uint j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
                     if (currentHash != matchHash) {
-                        address[] memory invalidVoters = _addressByHash[currentHash];
-                        for (uint8 k = 0; k < invalidVoters.length; k++) {
-                            if (!_nodeViolations[invalidVoters[k]].isBanned)
-                                punishNode(invalidVoters[k], _addressByHash[matchHash]);
+                        uint256 currentMatchId = _hashToMatchId[currentHash];
+                        bool isConflictingMatch = (currentMatchId == validMatchId && currentMatchId != 0);
+
+                        address[] memory votersForCurrentHash = _addressByHash[currentHash];
+
+                        if (isConflictingMatch) {
+                            for (uint k = 0; k < votersForCurrentHash.length; k++) {
+                                if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
+                                    punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
+                                }
+                            }
                         }
                         delete _matchVotes[currentHash];
                         delete _addressByHash[currentHash];
@@ -337,11 +360,33 @@ contract EsportOracle is Pausable {
                 }
                 delete _matchVotes[matchHash];
                 delete _addressByHash[matchHash];
+
+                bytes32[] memory newPendingHashes = new bytes32[](_pendingMatchesHashes.length - 1);
+                uint256 newIndex = 0;
+
+                for (uint p = 0; p < _pendingMatchesHashes.length; p++) {
+                    if (_pendingMatchesHashes[p] != matchHash) {
+                        newPendingHashes[newIndex] = _pendingMatchesHashes[p];
+                        newIndex++;
+                    }
+                }
+
                 delete _pendingMatchesHashes;
+                for (uint p = 0; p < newIndex; p++) {
+                    _pendingMatchesHashes.push(newPendingHashes[p]);
+                }
+
+                for (uint m = 0; m < _matchIdToHashes[validMatchId].length; m++) {
+                    bytes32 hashToCheck = _matchIdToHashes[validMatchId][m];
+                    if (hashToCheck != matchHash) {
+                        delete _hashToMatchId[hashToCheck];
+                    }
+                }
+                delete _matchIdToHashes[validMatchId];
+                _matchIdToHashes[validMatchId].push(matchHash);
             }
         }
 
-        /// Réinitialiser le compteur si tous les nœuds ont envoyé leurs données
         if (nbMatchSent == listedNodes.length)
             nbMatchSent = 0;
     }
@@ -447,7 +492,13 @@ contract EsportOracle is Pausable {
      * @param nbVote Nombre de votes reçus pour un match
      * @return true si le quorum est atteint, false sinon
      */
-    function qorumIsReached(uint8 nbVote) private view returns (bool) {
-        return (listedNodes.length / 2) < nbVote && nbVote > 2;
+    function quorumIsReached(uint8 nbVote) private view returns (bool) {
+        if (listedNodes.length <= 2) {
+            return nbVote >= listedNodes.length;
+        } else if (listedNodes.length == 3) {
+            return nbVote >= 2;
+        } else {
+            return nbVote > (listedNodes.length / 2);
+        }
     }
 }
