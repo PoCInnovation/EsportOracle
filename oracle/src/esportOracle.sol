@@ -306,10 +306,8 @@ contract EsportOracle is Pausable {
             bool alreadyVoted = false;
             uint256 matchId = newMatch[i]._id;
 
-            // Associer le hash à l'ID du match
             _hashToMatchId[matchHash] = matchId;
 
-            // Ajouter le hash à la liste des hashs pour cet ID de match
             bool hashExists = false;
             for (uint j = 0; j < _matchIdToHashes[matchId].length; j++) {
                 if (_matchIdToHashes[matchId][j] == matchHash) {
@@ -321,7 +319,6 @@ contract EsportOracle is Pausable {
                 _matchIdToHashes[matchId].push(matchHash);
             }
 
-            /// Vérifier si l'adresse a déjà voté pour ce match
             for (uint j = 0; j < _addressByHash[matchHash].length; j++) {
                 if (_addressByHash[matchHash][j] == msg.sender) {
                     alreadyVoted = true;
@@ -329,7 +326,6 @@ contract EsportOracle is Pausable {
                 }
             }
 
-            // Incrémenter les votes seulement si le nœud n'a pas déjà voté
             if (!alreadyVoted) {
                 _matchVotes[matchHash]++;
                 _addressByHash[matchHash].push(msg.sender);
@@ -375,26 +371,22 @@ contract EsportOracle is Pausable {
                     }
                 }
 
-                // Mettre à jour le tableau des hashs en attente
                 delete _pendingMatchesHashes;
                 for (uint p = 0; p < newIndex; p++) {
                     _pendingMatchesHashes.push(newPendingHashes[p]);
                 }
 
-                // Nettoyer les hashs obsolètes pour ce match ID
                 for (uint m = 0; m < _matchIdToHashes[validMatchId].length; m++) {
                     bytes32 hashToCheck = _matchIdToHashes[validMatchId][m];
                     if (hashToCheck != matchHash) {
                         delete _hashToMatchId[hashToCheck];
                     }
                 }
-                // Ne conserver que le hash validé pour ce match ID
                 delete _matchIdToHashes[validMatchId];
                 _matchIdToHashes[validMatchId].push(matchHash);
             }
         }
 
-        /// Réinitialiser le compteur si tous les nœuds ont envoyé leurs données
         if (nbMatchSent == listedNodes.length)
             nbMatchSent = 0;
     }
@@ -502,11 +494,11 @@ contract EsportOracle is Pausable {
      */
     function quorumIsReached(uint8 nbVote) private view returns (bool) {
         if (listedNodes.length <= 2) {
-            return nbVote >= listedNodes.length; // Tous les nœuds doivent voter si 2 ou moins
+            return nbVote >= listedNodes.length;
         } else if (listedNodes.length == 3) {
-            return nbVote >= 2; // Au moins 2 votes sur 3
+            return nbVote >= 2;
         } else {
-            return nbVote > (listedNodes.length / 2); // Majorité simple pour 4+ nœuds
+            return nbVote > (listedNodes.length / 2);
         }
     }
 }
