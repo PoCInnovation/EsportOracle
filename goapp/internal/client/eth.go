@@ -1,14 +1,20 @@
 package client
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"math/big"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
@@ -22,6 +28,15 @@ type EthereumClient struct {
 	chainID         *big.Int
 	contract        *contract.Contract
 }
+
+type MatchRequestedEvent struct {
+	RequestId *big.Int
+	MatchId   *big.Int
+	Requester common.Address
+	Fee       *big.Int
+}
+
+type EventHandler func(event MatchRequestedEvent)
 
 func NewEthereumClient(rpcURL, contractAddr, privateKeyHex, chainIDString string) (*EthereumClient, error) {
 	client, err := ethclient.Dial(rpcURL)
@@ -135,4 +150,123 @@ func (e *EthereumClient) Close() {
 	if e.client != nil {
 		e.client.Close()
 	}
+}
+
+func (e *EthereumClient) GetPublicAddress() common.Address {
+	return crypto.PubkeyToAddress(e.privateKey.PublicKey)
+}
+
+func (e *EthereumClient) ListenToMatchRequested(handler EventHandler) error {
+
+	matchRequestedABI := `[{"anonymous":false,"inputs":[{"indexed":true,"name":"requestId","type":"uint256"},{"indexed":true,"name":"matchId","type":"uint256"},{"indexed":true,"name":"requester","type":"address"},{"indexed":false,"name":"fee","type":"uint256"}],"name":"MatchRequested","type":"event"}]`
+
+	contractABI, err := abi.JSON(strings.NewReader(matchRequestedABI))
+	if err != nil {
+		return fmt.Errorf("failed to parse ABI: %w", err)
+	}
+
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{e.contractAddress},
+		Topics:    [][]common.Hash{{contractABI.Events["MatchRequested"].ID}},
+	}
+
+	logs := make(chan types.Log)
+	ctx := context.Background()
+	sub, err := e.client.SubscribeFilterLogs(ctx, query, logs)
+	
+	if err != nil {
+		log.Printf("WebSocket subscription failed (%v), falling back to polling", err)
+		go e.pollForEvents(query, contractABI, handler)
+		return nil
+	}
+
+	go func() {
+		defer sub.Unsubscribe()
+
+		for {
+			select {
+			case err := <-sub.Err():
+				log.Printf("Subscription error: %v", err)
+				return
+			case vLog := <-logs:
+				event, err := e.decodeMatchRequestedEvent(vLog, contractABI)
+				if err != nil {
+					log.Printf("Error decoding event: %v", err)
+					continue
+				}
+
+				handler(event)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (e *EthereumClient) pollForEvents(query ethereum.FilterQuery, contractABI abi.ABI, handler EventHandler) {
+	lastBlock := uint64(0)
+	
+	currentBlock, err := e.client.BlockNumber(context.Background())
+	if err != nil {
+		log.Printf("Failed to get current block number: %v", err)
+		return
+	}
+	lastBlock = currentBlock
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		currentBlock, err := e.client.BlockNumber(context.Background())
+		if err != nil {
+			log.Printf("Failed to get current block number: %v", err)
+			continue
+		}
+
+		if currentBlock > lastBlock {
+			query.FromBlock = big.NewInt(int64(lastBlock + 1))
+			query.ToBlock = big.NewInt(int64(currentBlock))
+
+			logs, err := e.client.FilterLogs(context.Background(), query)
+			if err != nil {
+				log.Printf("Failed to filter logs: %v", err)
+				continue
+			}
+
+			for _, vLog := range logs {
+				event, err := e.decodeMatchRequestedEvent(vLog, contractABI)
+				if err != nil {
+					log.Printf("Error decoding event: %v", err)
+					continue
+				}
+
+				handler(event)
+			}
+
+			lastBlock = currentBlock
+		}
+	}
+}
+
+func (e *EthereumClient) decodeMatchRequestedEvent(vLog types.Log, contractABI abi.ABI) (MatchRequestedEvent, error) {
+	var event MatchRequestedEvent
+
+	err := contractABI.UnpackIntoInterface(&struct {
+		Fee *big.Int
+	}{Fee: event.Fee}, "MatchRequested", vLog.Data)
+	if err != nil {
+		return event, fmt.Errorf("failed to unpack event data: %w", err)
+	}
+
+	if len(vLog.Topics) >= 4 {
+		event.RequestId = new(big.Int).SetBytes(vLog.Topics[1].Bytes())
+		event.MatchId = new(big.Int).SetBytes(vLog.Topics[2].Bytes())
+		event.Requester = common.BytesToAddress(vLog.Topics[3].Bytes())
+	}
+
+	if len(vLog.Data) >= 32 {
+		event.Fee = new(big.Int).SetBytes(vLog.Data[:32])
+	}
+
+	return event, nil
 }
