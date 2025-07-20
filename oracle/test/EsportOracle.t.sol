@@ -3,8 +3,10 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../src/esportOracle.sol";
+import "../src/esportOracleTypes.sol";
 
 contract EsportOracleTest is Test {
+    using EsportOracleTypes for EsportOracleTypes.MatchRequest;
     EsportOracle public oracle;
     address public owner;
     address public user1;
@@ -73,7 +75,7 @@ contract EsportOracleTest is Test {
         assertFalse(success, "Le retrait devrait echouer quand le contrat est en pause");
         
         console.log("Verification qu'un noeud ne peut pas envoyer de donnees de match");
-        EsportOracle.Match[] memory matchData = prepareSampleMatch();
+        EsportOracleTypes.Match[] memory matchData = prepareSampleMatch();
         
         vm.startPrank(user1);
         success = false;
@@ -209,7 +211,7 @@ contract EsportOracleTest is Test {
     function testQuorumWithEnoughNode() public {
         console.log("Test de quorum avec suffisamment de noeuds");
         
-        EsportOracle.Match[] memory matches = prepareSampleMatch();
+        EsportOracleTypes.Match[] memory matches = prepareSampleMatch();
 
         addFourTestNodes();
         
@@ -226,7 +228,7 @@ contract EsportOracleTest is Test {
         oracle.handleNewMatches(matches);
         
         console.log("Verification que le match a ete enregistre");
-        EsportOracle.Match memory dataNode = oracle.getMatchById(1);
+        EsportOracleTypes.Match memory dataNode = oracle.getMatchById(1);
         assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
 
         assertEq(oracle.getPendingMatches().length, 0, "Il ne doit pas y avoir de matchs en attente");
@@ -235,9 +237,9 @@ contract EsportOracleTest is Test {
     function testQuorumWithEnoughSameMatch() public {
         console.log("Test de quorum avec differents matchs soumis");
         
-        EsportOracle.Match[] memory matches1 = prepareSampleMatch();
+        EsportOracleTypes.Match[] memory matches1 = prepareSampleMatch();
         
-        EsportOracle.Match[] memory matches2 = prepareSampleMatch();
+        EsportOracleTypes.Match[] memory matches2 = prepareSampleMatch();
         matches2[0]._id = 2;
         matches2[0]._winnerId = 2;
 
@@ -260,7 +262,7 @@ contract EsportOracleTest is Test {
         oracle.handleNewMatches(matches2);
 
         console.log("Verification que seul le match avec quorum a ete enregistre");
-        EsportOracle.Match memory dataNode = oracle.getMatchById(1);
+        EsportOracleTypes.Match memory dataNode = oracle.getMatchById(1);
         assertEq(dataNode._id, 1, "Le match 1 doit etre enregistre");
 
         dataNode = oracle.getMatchById(2);
@@ -272,21 +274,21 @@ contract EsportOracleTest is Test {
     function testUpdatingMatchAlreadyRegister() public {
         console.log("Test de mise a jour d'un match deja enregistre");
         
-        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
-        opponents[0] = EsportOracle.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
-        opponents[1] = EsportOracle.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
+        EsportOracleTypes.Opponents[] memory opponents = new EsportOracleTypes.Opponents[](2);
+        opponents[0] = EsportOracleTypes.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
+        opponents[1] = EsportOracleTypes.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
         
-        EsportOracle.Games[] memory initialGames = new EsportOracle.Games[](3);
-        initialGames[0] = EsportOracle.Games({_id: 1, _finished: false, _winnerId: 0});
-        initialGames[1] = EsportOracle.Games({_id: 2, _finished: false, _winnerId: 0});
-        initialGames[2] = EsportOracle.Games({_id: 3, _finished: false, _winnerId: 0});
+        EsportOracleTypes.Games[] memory initialGames = new EsportOracleTypes.Games[](3);
+        initialGames[0] = EsportOracleTypes.Games({_id: 1, _finished: false, _winnerId: 0});
+        initialGames[1] = EsportOracleTypes.Games({_id: 2, _finished: false, _winnerId: 0});
+        initialGames[2] = EsportOracleTypes.Games({_id: 3, _finished: false, _winnerId: 0});
         
-        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
-        results[0] = EsportOracle.Result({_score: 3, _teamId: 1});
-        results[1] = EsportOracle.Result({_score: 1, _teamId: 2});
+        EsportOracleTypes.Result[] memory results = new EsportOracleTypes.Result[](2);
+        results[0] = EsportOracleTypes.Result({_score: 3, _teamId: 1});
+        results[1] = EsportOracleTypes.Result({_score: 1, _teamId: 2});
         
-        EsportOracle.Match[] memory initialMatch = new EsportOracle.Match[](1);
-        initialMatch[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory initialMatch = new EsportOracleTypes.Match[](1);
+        initialMatch[0] = EsportOracleTypes.Match({
             _id: 1, _opponents: opponents, _game: initialGames, _result: results, _winnerId: 1, _beginAt: block.timestamp
         });
 
@@ -300,13 +302,13 @@ contract EsportOracleTest is Test {
         vm.prank(user3);
         oracle.handleNewMatches(initialMatch);
 
-        EsportOracle.Games[] memory updatedGames = new EsportOracle.Games[](3);
-        updatedGames[0] = EsportOracle.Games({_id: 1, _finished: true, _winnerId: 2});
-        updatedGames[1] = EsportOracle.Games({_id: 2, _finished: true, _winnerId: 2});
-        updatedGames[2] = EsportOracle.Games({_id: 3, _finished: true, _winnerId: 2});
+        EsportOracleTypes.Games[] memory updatedGames = new EsportOracleTypes.Games[](3);
+        updatedGames[0] = EsportOracleTypes.Games({_id: 1, _finished: true, _winnerId: 2});
+        updatedGames[1] = EsportOracleTypes.Games({_id: 2, _finished: true, _winnerId: 2});
+        updatedGames[2] = EsportOracleTypes.Games({_id: 3, _finished: true, _winnerId: 2});
 
-        EsportOracle.Match[] memory updatedMatch = new EsportOracle.Match[](1);
-        updatedMatch[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory updatedMatch = new EsportOracleTypes.Match[](1);
+        updatedMatch[0] = EsportOracleTypes.Match({
             _id: 1, _opponents: opponents, _game: updatedGames, _result: results, _winnerId: 1, _beginAt: block.timestamp
         });
 
@@ -319,7 +321,7 @@ contract EsportOracleTest is Test {
         oracle.handleNewMatches(updatedMatch);
 
         console.log("Verification que le match a ete mis a jour correctement");
-        EsportOracle.Match memory dataNode = oracle.getMatchById(1);
+        EsportOracleTypes.Match memory dataNode = oracle.getMatchById(1);
         assertEq(dataNode._id, 1, "L'ID du match doit correspondre");
         assertEq(dataNode._game[0]._finished, true, "Le jeu doit etre marque comme termine");
         assertEq(dataNode._game[0]._winnerId, 2, "L'ID du gagnant doit etre mis a jour");
@@ -333,47 +335,47 @@ contract EsportOracleTest is Test {
         addFourTestNodes();
         console.log("4 noeuds ajoutes au systeme");
         
-        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
-        opponents[0] = EsportOracle.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
-        opponents[1] = EsportOracle.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
+        EsportOracleTypes.Opponents[] memory opponents = new EsportOracleTypes.Opponents[](2);
+        opponents[0] = EsportOracleTypes.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
+        opponents[1] = EsportOracleTypes.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
         
-        EsportOracle.Games[] memory games = new EsportOracle.Games[](1);
-        games[0] = EsportOracle.Games({_id: 1, _finished: true, _winnerId: 1});
+        EsportOracleTypes.Games[] memory games = new EsportOracleTypes.Games[](1);
+        games[0] = EsportOracleTypes.Games({_id: 1, _finished: true, _winnerId: 1});
         
-        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
-        results[0] = EsportOracle.Result({_score: 3, _teamId: 1});
-        results[1] = EsportOracle.Result({_score: 1, _teamId: 2});
+        EsportOracleTypes.Result[] memory results = new EsportOracleTypes.Result[](2);
+        results[0] = EsportOracleTypes.Result({_score: 3, _teamId: 1});
+        results[1] = EsportOracleTypes.Result({_score: 1, _teamId: 2});
         
-        EsportOracle.Match[] memory correctMatch1 = new EsportOracle.Match[](1);
-        correctMatch1[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory correctMatch1 = new EsportOracleTypes.Match[](1);
+        correctMatch1[0] = EsportOracleTypes.Match({
             _id: 1, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: 1
         });
         
-        EsportOracle.Match[] memory correctMatch2 = new EsportOracle.Match[](1);
-        correctMatch2[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory correctMatch2 = new EsportOracleTypes.Match[](1);
+        correctMatch2[0] = EsportOracleTypes.Match({
             _id: 2, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: 1
         });
         
-        EsportOracle.Match[] memory correctMatch3 = new EsportOracle.Match[](1);
-        correctMatch3[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory correctMatch3 = new EsportOracleTypes.Match[](1);
+        correctMatch3[0] = EsportOracleTypes.Match({
             _id: 3, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: 1
         });
         
-        EsportOracle.Games[] memory incorrectGames = new EsportOracle.Games[](1);
-        incorrectGames[0] = EsportOracle.Games({_id: 1, _finished: false, _winnerId: 2});
+        EsportOracleTypes.Games[] memory incorrectGames = new EsportOracleTypes.Games[](1);
+        incorrectGames[0] = EsportOracleTypes.Games({_id: 1, _finished: false, _winnerId: 2});
         
-        EsportOracle.Match[] memory incorrectMatch1 = new EsportOracle.Match[](1);
-        incorrectMatch1[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory incorrectMatch1 = new EsportOracleTypes.Match[](1);
+        incorrectMatch1[0] = EsportOracleTypes.Match({
             _id: 1, _opponents: opponents, _game: incorrectGames, _result: results, _winnerId: 2, _beginAt: 1
         });
         
-        EsportOracle.Match[] memory incorrectMatch2 = new EsportOracle.Match[](1);
-        incorrectMatch2[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory incorrectMatch2 = new EsportOracleTypes.Match[](1);
+        incorrectMatch2[0] = EsportOracleTypes.Match({
             _id: 2, _opponents: opponents, _game: incorrectGames, _result: results, _winnerId: 2, _beginAt: 1
         });
         
-        EsportOracle.Match[] memory incorrectMatch3 = new EsportOracle.Match[](1);
-        incorrectMatch3[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory incorrectMatch3 = new EsportOracleTypes.Match[](1);
+        incorrectMatch3[0] = EsportOracleTypes.Match({
             _id: 3, _opponents: opponents, _game: incorrectGames, _result: results, _winnerId: 2, _beginAt: 1
         });
         
@@ -467,7 +469,7 @@ contract EsportOracleTest is Test {
         
         vm.prank(user1);
         vm.expectRevert("Node is banned");
-        oracle.handleNewMatches(new EsportOracle.Match[](1));
+        oracle.handleNewMatches(new EsportOracleTypes.Match[](1));
         
         oracle.rehabilitateNode(user1);
         
@@ -477,7 +479,7 @@ contract EsportOracleTest is Test {
         
         vm.prank(user1);
         vm.expectRevert("Node is not listed, please call addNewNode function to register a new node");
-        oracle.handleNewMatches(new EsportOracle.Match[](1));
+        oracle.handleNewMatches(new EsportOracleTypes.Match[](1));
     }
 
     function testWithdrawStake() public {
@@ -521,20 +523,20 @@ contract EsportOracleTest is Test {
         assertEq(oracle._fundsStaked(user4), 0.001 ether + expectedShare, "Le noeud doit recevoir sa part");
     }
 
-    function prepareSampleMatch() internal view returns (EsportOracle.Match[] memory) {
-        EsportOracle.Opponents[] memory opponents = new EsportOracle.Opponents[](2);
-        opponents[0] = EsportOracle.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
-        opponents[1] = EsportOracle.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
+    function prepareSampleMatch() internal view returns (EsportOracleTypes.Match[] memory) {
+        EsportOracleTypes.Opponents[] memory opponents = new EsportOracleTypes.Opponents[](2);
+        opponents[0] = EsportOracleTypes.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
+        opponents[1] = EsportOracleTypes.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
         
-        EsportOracle.Games[] memory games = new EsportOracle.Games[](1);
-        games[0] = EsportOracle.Games({_id: 1, _finished: true, _winnerId: 1});
+        EsportOracleTypes.Games[] memory games = new EsportOracleTypes.Games[](1);
+        games[0] = EsportOracleTypes.Games({_id: 1, _finished: true, _winnerId: 1});
         
-        EsportOracle.Result[] memory results = new EsportOracle.Result[](2);
-        results[0] = EsportOracle.Result({_score: 3, _teamId: 1});
-        results[1] = EsportOracle.Result({_score: 1, _teamId: 2});
+        EsportOracleTypes.Result[] memory results = new EsportOracleTypes.Result[](2);
+        results[0] = EsportOracleTypes.Result({_score: 3, _teamId: 1});
+        results[1] = EsportOracleTypes.Result({_score: 1, _teamId: 2});
         
-        EsportOracle.Match[] memory matches = new EsportOracle.Match[](1);
-        matches[0] = EsportOracle.Match({
+        EsportOracleTypes.Match[] memory matches = new EsportOracleTypes.Match[](1);
+        matches[0] = EsportOracleTypes.Match({
             _id: 1, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: block.timestamp
         });
         

@@ -18,10 +18,15 @@ import (
 func main() {
 	fmt.Println("Esport Oracle starting...")
 
-	if err := godotenv.Load(); err != nil {
-		log.Println("Warning: .env file not found")
-	}
-
+	envFile := ".env"
+    if len(os.Args) > 1 {
+        envFile = ".env." + os.Args[1]
+    }
+    
+    err := godotenv.Load(envFile)
+    if err != nil {
+        log.Fatal("Error loading file .env:", err)
+    }
 	pandaToken := getEnvOrExit("PANDASCORE_API_TOKEN", "API token for PandaScore is required")
 	rpcURL := getEnvOrExit("CLIENT_ETH", "Ethereum RPC URL is required")
 	contractAddr := getEnvOrExit("CONTRACT_ADDRESS", "Contract address is required")
@@ -74,6 +79,17 @@ func main() {
 			fmt.Printf("   Error processing match by ID: %v\n", err)
 		} else {
 			fmt.Printf("   Match successfully fetched and sent to contract\n")
+			fmt.Println("	Requester's address (should be contract):", event.Requester.Hex())
+			match, err := ethereumClient.GetMatchById(event.MatchId)
+			if err != nil {
+				log.Printf("   Error getting match by ID %s to call CallMatchReceived: %v\n", event.MatchId.String(), err)
+			} else {
+				if err := ethereumClient.CallOnMatchReceived(contractAddr, event.Requester, event.MatchId, match); err != nil {
+					log.Printf("   Error calling CallMatchReceived on client %s: %v\n", event.Requester.Hex(), err)
+				} else {
+					fmt.Printf("   CallMatchReceived successfully called on client %s\n", event.Requester.Hex())
+				}
+			}
 		}
 		
 	})
