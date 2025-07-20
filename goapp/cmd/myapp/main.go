@@ -9,24 +9,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"src/internal/client"
 	"src/internal/service"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
 	fmt.Println("Esport Oracle starting...")
 
-	envFile := ".env"
-    if len(os.Args) > 1 {
-        envFile = ".env." + os.Args[1]
-    }
-    
-    err := godotenv.Load(envFile)
-    if err != nil {
-        log.Fatal("Error loading file .env:", err)
-    }
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found")
+	}
+
 	pandaToken := getEnvOrExit("PANDASCORE_API_TOKEN", "API token for PandaScore is required")
 	rpcURL := getEnvOrExit("CLIENT_ETH", "Ethereum RPC URL is required")
 	contractAddr := getEnvOrExit("CONTRACT_ADDRESS", "Contract address is required")
@@ -39,6 +33,7 @@ func main() {
 	}
 
 	pandaClient := client.NewPandaScoreClient(pandaToken)
+
 
 	ethereumClient, err := client.NewEthereumClient(rpcURL, contractAddr, privateKey, chainID)
 	if err != nil {
