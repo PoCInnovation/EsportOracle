@@ -40,8 +40,8 @@ type Result struct {
 	TeamID int `json:"team_id"`
 }
 
-func (m *Match) ToContractMatch() contract.EsportOracleMatch {
-	contractMatch := contract.EsportOracleMatch{
+func (m *Match) ToContractMatch() contract.EsportOracleTypesMatch {
+	contractMatch := contract.EsportOracleTypesMatch{
 		Id:       big.NewInt(int64(m.ID)),
 		WinnerId: big.NewInt(int64(m.WinnerID)),
 	}
@@ -54,7 +54,7 @@ func (m *Match) ToContractMatch() contract.EsportOracleMatch {
 
 	for _, opp := range m.Opponents {
 		team := opp.Opponent
-		contractMatch.Opponents = append(contractMatch.Opponents, contract.EsportOracleOpponents{
+		contractMatch.Opponents = append(contractMatch.Opponents, contract.EsportOracleTypesOpponents{
 			Acronym: team.Acronym,
 			Id:      big.NewInt(int64(team.ID)),
 			Name:    team.Name,
@@ -67,7 +67,7 @@ func (m *Match) ToContractMatch() contract.EsportOracleMatch {
 			winnerId = big.NewInt(int64(*game.Winner.ID))
 		}
 
-		contractMatch.Game = append(contractMatch.Game, contract.EsportOracleGames{
+		contractMatch.Game = append(contractMatch.Game, contract.EsportOracleTypesGames{
 			Id:       big.NewInt(int64(game.ID)),
 			Finished: game.Finished,
 			WinnerId: winnerId,
@@ -75,7 +75,7 @@ func (m *Match) ToContractMatch() contract.EsportOracleMatch {
 	}
 
 	for _, result := range m.Results {
-		contractMatch.Result = append(contractMatch.Result, contract.EsportOracleResult{
+		contractMatch.Result = append(contractMatch.Result, contract.EsportOracleTypesResult{
 			Score:  uint8(result.Score),
 			TeamId: big.NewInt(int64(result.TeamID)),
 		})

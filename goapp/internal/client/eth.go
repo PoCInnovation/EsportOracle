@@ -26,7 +26,7 @@ type EthereumClient struct {
 	contractAddress common.Address
 	privateKey      *ecdsa.PrivateKey
 	chainID         *big.Int
-	contract        *contract.Contract
+	contract        *contract.EsportOracle
 }
 
 type MatchRequestedEvent struct {
@@ -56,7 +56,7 @@ func NewEthereumClient(rpcURL, contractAddr, privateKeyHex, chainIDString string
 	chainID := big.NewInt(int64(i))
 
 	contractAddress := common.HexToAddress(contractAddr)
-	contractInstance, err := contract.NewContract(contractAddress, client)
+	contractInstance, err := contract.NewEsportOracle(contractAddress, client)
 	if err != nil {
 		return nil, fmt.Errorf("contract.NewContract(): %w", err)
 	}
@@ -70,7 +70,7 @@ func NewEthereumClient(rpcURL, contractAddr, privateKeyHex, chainIDString string
 	}, nil
 }
 
-func (e *EthereumClient) SendMatchesToContract(matches []contract.EsportOracleMatch) error {
+func (e *EthereumClient) SendMatchesToContract(matches []contract.EsportOracleTypesMatch) error {
 	auth, err := bind.NewKeyedTransactorWithChainID(e.privateKey, e.chainID)
 	if err != nil {
 		return fmt.Errorf("bind.NewKeyedTransactorWithChainID(): %w", err)
@@ -95,7 +95,7 @@ func (e *EthereumClient) GetListedNodes() ([]common.Address, error) {
 	return e.contract.GetListedNodes(&bind.CallOpts{})
 }
 
-func (e *EthereumClient) GetMatchById(matchId *big.Int) (contract.EsportOracleMatch, error) {
+func (e *EthereumClient) GetMatchById(matchId *big.Int) (contract.EsportOracleTypesMatch, error) {
 	return e.contract.GetMatchById(&bind.CallOpts{}, matchId)
 }
 
@@ -270,3 +270,35 @@ func (e *EthereumClient) decodeMatchRequestedEvent(vLog types.Log, contractABI a
 
 	return event, nil
 }
+
+func (e *EthereumClient) CallOnMatchReceived(currentContract string, clientContractAddress common.Address, matchId *big.Int, match contract.EsportOracleTypesMatch) error {
+	auth, err := bind.NewKeyedTransactorWithChainID(e.privateKey, e.chainID)
+	address := common.HexToAddress(currentContract)
+	if err != nil {
+		return fmt.Errorf("bind.NewKeyedTransactorWithChainID(): %w", err)
+	}
+	fmt.Println("Requester's address (should be contract):", address);
+	clientContract, err := contract.NewEsportOracleRequester(address, e.client);
+	if err != nil {
+		return fmt.Errorf("contract.NewEsportOracleClientRequester(): %w", err)
+	}
+
+	tx, err := clientContract.CallMatchOracle(auth, matchId, match);
+	if err != nil {
+		return fmt.Errorf("clientContract.OnMatchReceived(): %w", err)
+	}
+
+	log.Printf("OnMatchReceived transaction sent to client %s: %s", clientContractAddress.Hex(), tx.Hash().Hex())
+	return nil
+}
+
+func (e *EthereumClient) CheckQuorum(match contract.EsportOracleTypesMatch) (bool, error) {
+	contractInstance, err := contract.NewEsportOracleRequester(e.contractAddress, e.client)
+	if err != nil {
+		return false, err
+	}
+
+	callOpts := &bind.CallOpts{}
+	return contractInstance.CheckQorum(callOpts, match)
+}
+

@@ -2,24 +2,32 @@
 pragma solidity ^0.8.20;
 
 import "./esportOracle.sol";
-import "./matchRequest.sol";
+
+import "./esportOracleTypes.sol";
+
+import "./esportOracleClientRequester.sol";
+
 interface InterfaceOracle {
     function requestMatch(uint256 matchId) external payable returns (uint256);
-    function getMatchRequest(uint256 requestId) external view returns (lib.MatchRequest memory);
+    function getMatchRequest(uint256 requestId) external view returns (EsportOracleTypes.MatchRequest memory);
     function isMatchRequested(uint256 matchId) external view returns (bool);
     function markRequestsFulfilled(uint256 matchId) external;
     function getPendingRequestedMatches() external view returns (uint256[] memory);
+    function getMatchById(uint256 matchId) external view returns (EsportOracleTypes.Match memory);
 }
 
 contract EsportOracleRequester is EsportOracle {
     // Use to library MatchRequest
-    using lib for lib.MatchRequest;
+    using EsportOracleTypes for EsportOracleTypes.MatchRequest;
 
     // Counter for request IDs
     uint256 private _requestCounter;
 
     // Mapping to store match requests
-    mapping(uint256 => lib.MatchRequest) public _matchRequests;
+    mapping(uint256 => EsportOracleTypes.MatchRequest) public _matchRequests;
+
+    // Mapping to store match retrieved by matchRequest
+    mapping(uint256 => uint256) private _matchIdToRequestId;
 
     // Minimum fee required to request a match
     uint256 public constant MIN_REQUEST_FEE = 0.0001 ether;
@@ -43,12 +51,14 @@ contract EsportOracleRequester is EsportOracle {
         _requestCounter++;
         uint256 requestId = _requestCounter;
 
-        _matchRequests[requestId] = lib.MatchRequest({
+        _matchRequests[requestId] = EsportOracleTypes.MatchRequest({
             matchId: matchId,
             requester: msg.sender,
             fee: msg.value,
             fulfilled: false
         });
+
+        _matchIdToRequestId[matchId] = requestId;
 
         emit MatchRequested(requestId, matchId, msg.sender, msg.value);
 
@@ -60,13 +70,13 @@ contract EsportOracleRequester is EsportOracle {
      * @param matchId Id of the request
      * @return MatchRequest struct containing the details of the request
      */
-    function getMatchRequest(uint256 matchId) external view returns (lib.MatchRequest memory) {
+    function getMatchRequest(uint256 matchId) external view returns (EsportOracleTypes.MatchRequest memory) {
         for (uint256 i = 1; i <= _requestCounter; i++) {
             if (_matchRequests[i].matchId == matchId) {
                 return _matchRequests[i];
             }
         }
-        return lib.MatchRequest(0, address(0), 0, false);
+        return EsportOracleTypes.MatchRequest(0, address(0), 0, false);
     }
 
     /**
@@ -87,7 +97,7 @@ contract EsportOracleRequester is EsportOracle {
      * @notice Mark a match request as fulfilled
      * @param matchId Id of the match to mark as fulfilled
      */
-    function markRequestsFulfilled(uint256 matchId) external {
+    function markRequestsFulfilled(uint256 matchId) public {
         for (uint256 i = 1; i <= _requestCounter; i++) {
             if (_matchRequests[i].matchId == matchId && !_matchRequests[i].fulfilled) {
                 _matchRequests[i].fulfilled = true;
@@ -119,5 +129,18 @@ contract EsportOracleRequester is EsportOracle {
         }
 
         return pendingMatches;
+    }
+
+    function getRequestByMatchId(uint256 matchId) public view returns (EsportOracleTypes.MatchRequest memory) {
+        uint256 requestId = _matchIdToRequestId[matchId];
+        return _matchRequests[requestId];
+    }
+
+    function callMatchOracle(uint256 matchId, EsportOracleTypes.Match memory matchData) external {
+        EsportOracleTypes.MatchRequest memory match_request = getRequestByMatchId(matchId);
+        require(match_request.requester != address(0), "Invalid address requester");
+        require(_matchMapping[matchId]._id != 0, "Match not validated by quorum yet");
+        EsportOracleClientRequester(match_request.requester).callMatchReceived(matchData);
+        markRequestsFulfilled(matchId);
     }
 }

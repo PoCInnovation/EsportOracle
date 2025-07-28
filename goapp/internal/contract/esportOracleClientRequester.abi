@@ -1,0 +1,261 @@
+[
+  {
+    "type": "function",
+    "name": "_owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "callMatchReceived",
+    "inputs": [
+      {
+        "name": "_match",
+        "type": "tuple",
+        "internalType": "struct EsportOracleTypes.Match",
+        "components": [
+          {
+            "name": "_id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_opponents",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Opponents[]",
+            "components": [
+              {
+                "name": "_acronym",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_name",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "_game",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Games[]",
+            "components": [
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_finished",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "_winnerId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_result",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Result[]",
+            "components": [
+              {
+                "name": "_score",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "_teamId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_winnerId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_beginAt",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "oracle",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract InterfaceOracle"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "receiveMatch",
+    "inputs": [
+      {
+        "name": "matchId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "requestId",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "showMatch",
+    "inputs": [
+      {
+        "name": "matchId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct EsportOracleTypes.Match",
+        "components": [
+          {
+            "name": "_id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_opponents",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Opponents[]",
+            "components": [
+              {
+                "name": "_acronym",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_name",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "_game",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Games[]",
+            "components": [
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_finished",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "_winnerId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_result",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Result[]",
+            "components": [
+              {
+                "name": "_score",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "_teamId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_winnerId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_beginAt",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "showPendingRequestedMatches",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  }
+]

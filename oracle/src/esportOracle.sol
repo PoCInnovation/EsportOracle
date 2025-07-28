@@ -3,42 +3,12 @@ pragma solidity ^0.8.20;
 
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
+import "./esportOracleTypes.sol";
+
 contract EsportOracle is Pausable {
+    using EsportOracleTypes for *;
     address public _owner;
-
-    struct Result {
-        uint8 _score;
-        uint256 _teamId;
-    }
-
-    struct Games {
-        uint256 _id;
-        bool _finished;
-        uint256 _winnerId;
-    }
-
-    struct Opponents {
-        string _acronym;
-        uint256 _id;
-        string _name;
-    }
-
-    struct Match {
-        uint256 _id;
-        Opponents[] _opponents;
-        Games[] _game;
-        Result[] _result;
-        uint256 _winnerId;
-        uint256 _beginAt;
-    }
-
-    // Structure pour suivre les violations des nœuds
-    struct NodeViolation {
-        uint256 incorrectMatches;
-        bool isBanned;
-    }
-
-    mapping(uint256 => Match) public _matchMapping;
+    mapping(uint256 => EsportOracleTypes.Match) public _matchMapping;
     address[] private listedNodes;
     mapping(address => uint256) public _fundsStaked;
     mapping(bytes32 => uint8) public _matchVotes;
@@ -49,7 +19,7 @@ contract EsportOracle is Pausable {
     mapping(uint256 => bytes32[]) public _matchIdToHashes;
     mapping(bytes32 => uint256) public _hashToMatchId;
 
-    mapping(address => NodeViolation) public _nodeViolations;
+    mapping(address => EsportOracleTypes.NodeViolation) public _nodeViolations;
     uint256 public constant MAX_VIOLATIONS = 3;
     uint256 public constant PUNISHMENT_AMOUNT = 0.0001 ether;
 
@@ -297,7 +267,7 @@ contract EsportOracle is Pausable {
      * @notice function called by listed nodes only, to register new matches
      * @param newMatch : a list of matches to register
      */
-    function handleNewMatches(Match[] memory newMatch) external whenNotPaused notBanned(msg.sender) onlyListedNodes {
+    function handleNewMatches(EsportOracleTypes.Match[] memory newMatch) external whenNotPaused notBanned(msg.sender) onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
         nbMatchSent++;
 
@@ -408,7 +378,7 @@ contract EsportOracle is Pausable {
      * @notice add match blockchain
      * @param newMatch a tab of a Match
      */
-    function addNewMatch(Match memory newMatch) internal returns (Match memory) {
+    function addNewMatch(EsportOracleTypes.Match memory newMatch) internal returns (EsportOracleTypes.Match memory) {
         uint256 matchId = newMatch._id;
 
         // SECTION 1: INITIAL MATCH CREATION
@@ -421,19 +391,19 @@ contract EsportOracle is Pausable {
 
             // Copy all opponents data
             for (uint256 j = 0; j < newMatch._opponents.length; j++) {
-                Opponents memory opponent = newMatch._opponents[j];
+                EsportOracleTypes.Opponents memory opponent = newMatch._opponents[j];
                 _matchMapping[matchId]._opponents.push(opponent);
             }
 
             // Copy all games data
             for (uint256 j = 0; j < newMatch._game.length; j++) {
-                Games memory game = newMatch._game[j];
+                EsportOracleTypes.Games memory game = newMatch._game[j];
                 _matchMapping[matchId]._game.push(game);
             }
 
             // Copy all results data
             for (uint256 j = 0; j < newMatch._result.length; j++) {
-                Result memory result = newMatch._result[j];
+                EsportOracleTypes.Result memory result = newMatch._result[j];
                 _matchMapping[matchId]._result.push(result);
             }
             return _matchMapping[matchId];
@@ -451,7 +421,7 @@ contract EsportOracle is Pausable {
         if (currentGameHash != newGameHash) {
             delete (_matchMapping[matchId]._game);
             for (uint256 j = 0; j < newMatch._game.length; j++) {
-                Games memory game = newMatch._game[j];
+                EsportOracleTypes.Games memory game = newMatch._game[j];
                 _matchMapping[matchId]._game.push(game);
             }
         }
@@ -463,7 +433,7 @@ contract EsportOracle is Pausable {
         if (currentResultHash != newResultHash) {
             delete (_matchMapping[matchId]._result);
             for (uint256 j = 0; j < newMatch._result.length; j++) {
-                Result memory result = newMatch._result[j];
+                EsportOracleTypes.Result memory result = newMatch._result[j];
                 _matchMapping[matchId]._result.push(result);
             }
         }
@@ -475,7 +445,7 @@ contract EsportOracle is Pausable {
         if (currentOpponentHash != newOppenentHash) {
             delete (_matchMapping[matchId]._opponents);
             for (uint256 j = 0; j < newMatch._opponents.length; j++) {
-                Opponents memory opponent = newMatch._opponents[j];
+                EsportOracleTypes.Opponents memory opponent = newMatch._opponents[j];
                 _matchMapping[matchId]._opponents.push(opponent);
             }
         }
@@ -488,7 +458,7 @@ contract EsportOracle is Pausable {
      * @return The match object
      * @dev This function retrieves a match by its ID from the mapping
      */
-    function getMatchById(uint256 matchId) external view returns (Match memory) {
+    function getMatchById(uint256 matchId) external view returns (EsportOracleTypes.Match memory) {
         return (_matchMapping[matchId]);
     }
 
@@ -513,41 +483,5 @@ contract EsportOracle is Pausable {
         } else {
             return nbVote > (listedNodes.length / 2);
         }
-    }
-
-    /**
-     * @notice Vérifie si deux matchs sont substantiellement différents (et non juste des variations mineures)
-     * @param match1 Premier match à comparer
-     * @param match2 Deuxième match à comparer
-     * @return true si les matchs sont substantiellement différents, false sinon
-     */
-    function areMatchesSubstantiallyDifferent(Match memory match1, Match memory match2) private pure returns (bool) {
-        // Vérifier les différences critiques qui justifient une punition
-        if (match1._id != match2._id) return true;
-        if (match1._winnerId != match2._winnerId && match1._winnerId != 0 && match2._winnerId != 0) return true;
-        
-        // Vérifier si les jeux terminés ont des gagnants différents
-        if (match1._game.length != match2._game.length) return true;
-        
-        for (uint i = 0; i < match1._game.length; i++) {
-            if (match1._game[i]._finished && match2._game[i]._finished) {
-                if (match1._game[i]._winnerId != match2._game[i]._winnerId) return true;
-            }
-        }
-        
-        // Vérifier les différences significatives dans les résultats
-        if (match1._result.length != match2._result.length) return true;
-        
-        for (uint i = 0; i < match1._result.length; i++) {
-            // Tolérer des différences mineures de score (≤ 1 point)
-            if (match1._result[i]._teamId != match2._result[i]._teamId) return true;
-            if (match1._result[i]._score > match2._result[i]._score) {
-                if (match1._result[i]._score - match2._result[i]._score > 1) return true;
-            } else {
-                if (match2._result[i]._score - match1._result[i]._score > 1) return true;
-            }
-        }
-        
-        return false;
     }
 }
