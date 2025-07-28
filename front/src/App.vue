@@ -1,11 +1,21 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import Navbar from '@/components/Navbar.vue'
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <div class="app">
+    <Navbar />
+    
+  </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+</style>
