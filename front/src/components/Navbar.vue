@@ -1,6 +1,7 @@
 <template>
   <nav class="navbar">
     <div class="navContainer">
+      <RouterLink to="/" class="navLink">Home</RouterLink>
       <!-- Logo/Brand -->
       <div class="navBrand">
         <h2>EsportOracle</h2>
@@ -18,7 +19,7 @@
 
       <!-- MetaMask integration -->
       <WalletConnect />
-
+      <RouterLink to="/profil" class="navLink">Profil</RouterLink>
     </div>
   </nav>
 </template>
