@@ -6,14 +6,24 @@
         ×
       </button>
     </div>
-    <button 
-      v-else
-      @click="connect" 
-      class="connectButton"
-      :disabled="isConnecting"
-    >
-      {{ isConnecting ? 'Connecting...' : buttonText }}
-    </button>
+    <div v-else class="connectSection">
+      <button 
+        @click="() => connect()" 
+        class="connectButton"
+        :disabled="isConnecting"
+      >
+        {{ isConnecting ? 'Connecting...' : buttonText }}
+      </button>
+      <button 
+        v-if="hasWalletHistory"
+        @click="() => forceWalletSelection()" 
+        class="selectWalletButton"
+        :disabled="isConnecting"
+        title="Choose a different wallet"
+      >
+        Select Wallet
+      </button>
+    </div>
     <div v-if="error" class="errorMessage">
       {{ error }}
     </div>
@@ -58,6 +68,7 @@ const publicClient = ref<PublicClient | null>(null)    // Viem public client for
 const chainId = ref<number | null>(null)        // Current blockchain network ID
 const balance = ref<string>('')         // Current ETH balance in human-readable format
 const error = ref<string>('')           // Current error message to display to user
+const hasWalletHistory = ref(false)     // Whether the user has previously connected a wallet
 
 /**
  * Maps chain IDs to their corresponding Viem chain configurations
@@ -88,8 +99,8 @@ const buttonText = computed(() => {
 
 /**
  * Safely retrieves the Ethereum provider from the window object
- * Handles cases where multiple wallet providers are installed (e.g., MetaMask + WalletConnect)
- * Prioritizes MetaMask if available among multiple providers
+ * Handles cases where multiple wallet providers are installed with enhanced error handling
+ * Prioritizes MetaMask if available among multiple providers, with fallback strategies
  * @returns The Ethereum provider instance or null if not available
  */
 const getEthereumProvider = (): EthereumProvider | null => {
@@ -98,21 +109,53 @@ const getEthereumProvider = (): EthereumProvider | null => {
   const ethereum = (window as any).ethereum
   if (!ethereum) return null
 
-  // Handle multiple providers (e.g., MetaMask + other wallets)
-  if (ethereum.providers && ethereum.providers.length > 0) {
-    return ethereum.providers.find((provider: any) => provider.isMetaMask) || ethereum.providers[0]
+  // Handle multiple providers with enhanced detection
+  if (ethereum.providers && Array.isArray(ethereum.providers) && ethereum.providers.length > 0) {
+    console.log('Multiple wallet providers detected:', ethereum.providers.length)
+    
+    // Try to find MetaMask first
+    const metamaskProvider = ethereum.providers.find((provider: any) => {
+      return provider.isMetaMask && !provider.isBraveWallet && !provider.isCoinbaseWallet
+    })
+    
+    if (metamaskProvider) {
+      console.log('Using MetaMask provider')
+      return metamaskProvider
+    }
+    
+    // Fallback to first available provider that looks stable
+    const stableProvider = ethereum.providers.find((provider: any) => {
+      return provider.request && typeof provider.request === 'function'
+    })
+    
+    if (stableProvider) {
+      console.log('Using fallback provider:', stableProvider)
+      return stableProvider
+    }
+    
+    // Last resort: use the first provider
+    console.log('Using first available provider')
+    return ethereum.providers[0]
   }
   
-  return ethereum
+  // Single provider case - but verify it has required methods
+  if (ethereum.request && typeof ethereum.request === 'function') {
+    console.log('Using single ethereum provider')
+    return ethereum
+  }
+  
+  console.warn('No valid Ethereum provider found')
+  return null
 }
 
 /**
  * Main function to establish a connection with the user's wallet
- * Handles the complete flow from requesting accounts to setting up Viem clients
+ * Enhanced to handle multiple wallet providers with robust error handling
  * Updates all relevant state variables upon successful connection
+ * @param forceSelection - If true, forces wallet selection dialog even if previously connected
  * @throws Will set error state if connection fails at any step
  */
-const connect = async () => {
+const connect = async (forceSelection = false) => {
   error.value = ''
   const provider = getEthereumProvider()
   
@@ -124,34 +167,98 @@ const connect = async () => {
   try {
     isConnecting.value = true
     
-    // Request account access from the wallet
-    const accounts = await provider.request({
-      method: 'eth_requestAccounts'
-    }) as Address[]
+    // Add a small delay to let wallet providers stabilize
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    let accounts: Address[]
+    
+    if (forceSelection) {
+      // Force wallet selection by requesting permissions again
+      try {
+        // First try to revoke existing permissions (if supported)
+        if (provider.request) {
+          await provider.request({
+            method: 'wallet_revokePermissions',
+            params: [{ eth_accounts: {} }]
+          }).catch(() => {
+            // Ignore errors - not all wallets support this method
+            console.log('Wallet permission revocation not supported or failed')
+          })
+        }
+      } catch (revokeError) {
+        console.log('Permission revocation failed, continuing with forced selection')
+      }
+      
+      // Force new permission request
+      accounts = await provider.request({
+        method: 'eth_requestAccounts'
+      }) as Address[]
+    } else {
+      // Normal connection request with timeout
+      const accountsPromise = provider.request({
+        method: 'eth_requestAccounts'
+      })
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Connection timeout - please try again')), 30000)
+      })
+      
+      accounts = await Promise.race([accountsPromise, timeoutPromise]) as Address[]
+    }
     
     if (!accounts || accounts.length === 0) {
       throw new Error('No accounts returned from wallet')
     }
 
-    // Get the current chain ID from the wallet
-    const chainIdHex = await provider.request({
-      method: 'eth_chainId'
-    }) as string
+    // Set wallet history flag
+    hasWalletHistory.value = true
+    localStorage.setItem('walletConnected', 'true')
+
+    // Get the current chain ID from the wallet with retry logic
+    let chainIdHex: string
+    let retryCount = 0
+    const maxRetries = 3
     
-    const currentChainId = parseInt(chainIdHex, 16)
+    while (retryCount < maxRetries) {
+      try {
+        chainIdHex = await provider.request({
+          method: 'eth_chainId'
+        }) as string
+        break
+      } catch (chainError) {
+        retryCount++
+        if (retryCount === maxRetries) {
+          throw new Error('Failed to get chain ID after multiple attempts')
+        }
+        console.warn(`Chain ID request failed, retrying... (${retryCount}/${maxRetries})`)
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    }
+    
+    const currentChainId = parseInt(chainIdHex!, 16)
     const currentChain = getCurrentChain(currentChainId)
     
-    // Create public client for reading blockchain data (balances, contract state, etc.)
-    const pubClient = createPublicClient({
-      chain: currentChain,
-      transport: custom(provider)
-    })
+    // Create clients with error handling
+    let pubClient: PublicClient
+    let client: WalletClient
     
-    // Create wallet client for signing transactions (without pre-specifying account)
-    const client = createWalletClient({
-      chain: currentChain,
-      transport: custom(provider)
-    })
+    try {
+      // Create public client for reading blockchain data
+      pubClient = createPublicClient({
+        chain: currentChain,
+        transport: custom(provider)
+      })
+      
+      // Create wallet client for signing transactions
+      client = createWalletClient({
+        chain: currentChain,
+        transport: custom(provider)
+      })
+    } catch (clientError) {
+      console.error('Failed to create Viem clients:', clientError)
+      throw new Error('Failed to initialize blockchain connection')
+    }
     
     // Update component state with connection details
     walletClient.value = client
@@ -160,8 +267,13 @@ const connect = async () => {
     chainId.value = currentChainId
     isConnected.value = true
     
-    // Fetch and display the user's ETH balance
-    await updateBalance()
+    // Fetch and display the user's ETH balance with error handling
+    try {
+      await updateBalance()
+    } catch (balanceError) {
+      console.warn('Failed to fetch balance, but connection successful:', balanceError)
+      // Don't fail the entire connection for balance errors
+    }
     
     console.log('Wallet connected successfully:', {
       account: accounts[0],
@@ -171,10 +283,30 @@ const connect = async () => {
     
   } catch (err: any) {
     console.error('Connection error:', err)
-    error.value = err.message || 'Failed to connect wallet'
+    
+    // Provide more specific error messages
+    if (err.message.includes('User rejected')) {
+      error.value = 'Connection cancelled by user'
+    } else if (err.message.includes('timeout')) {
+      error.value = 'Connection timeout - please try again'
+    } else if (err.message.includes('multiple wallets')) {
+      error.value = 'Multiple wallets detected - please disable other wallet extensions'
+    } else {
+      error.value = err.message || 'Failed to connect wallet'
+    }
   } finally {
     isConnecting.value = false
   }
+}
+
+/**
+ * Forces the wallet selection dialog to appear
+ * Useful when user wants to switch to a different wallet or account
+ * This bypasses the automatic reconnection behavior
+ */
+const forceWalletSelection = async () => {
+  console.log('Forcing wallet selection dialog')
+  await connect(true)
 }
 
 /**
@@ -195,6 +327,9 @@ const disconnect = async () => {
   chainId.value = null
   balance.value = ''
   error.value = ''
+  
+  // Keep wallet history for showing "Select Wallet" button
+  // hasWalletHistory.value remains true
   
   console.log('Wallet disconnected')
 }
@@ -237,7 +372,7 @@ const handleAccountsChanged = (accounts: string[]) => {
 
 /**
  * Handles blockchain network changes triggered by the user switching networks in MetaMask
- * Recreates the Viem clients with the new chain configuration
+ * Recreates the Viem clients with the new chain configuration using enhanced provider detection
  * Updates the balance display for the new network
  * @param chainIdHex - Hexadecimal string representation of the new chain ID
  */
@@ -248,15 +383,29 @@ const handleChainChanged = (chainIdHex: string) => {
   chainId.value = newChainId
   
   if (walletClient.value && connectedAccount.value) {
-    // Recreate wallet client with new chain
+    // Recreate clients with new chain using enhanced provider detection
     const provider = getEthereumProvider()
     if (provider) {
-      const client = createWalletClient({
-        chain: newChainId === 1 ? mainnet : sepolia,
-        transport: custom(provider)
-      })
-      walletClient.value = client
-      updateBalance()
+      try {
+        const currentChain = getCurrentChain(newChainId)
+        
+        const pubClient = createPublicClient({
+          chain: currentChain,
+          transport: custom(provider)
+        })
+        
+        const client = createWalletClient({
+          chain: currentChain,
+          transport: custom(provider)
+        })
+        
+        publicClient.value = pubClient
+        walletClient.value = client
+        updateBalance()
+      } catch (err) {
+        console.error('Failed to recreate clients after chain change:', err)
+        error.value = 'Failed to switch network - please reconnect your wallet'
+      }
     }
   }
 }
@@ -300,6 +449,12 @@ const cleanupEventListeners = () => {
 const checkConnection = async () => {
   const provider = getEthereumProvider()
   if (!provider) return
+  
+  // Check if user has previously connected a wallet
+  const walletConnected = localStorage.getItem('walletConnected')
+  if (walletConnected === 'true') {
+    hasWalletHistory.value = true
+  }
   
   try {
     const accounts = await provider.request({
@@ -359,6 +514,13 @@ defineExpose({
   gap: 0.5rem;
 }
 
+.connectSection {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  width: 100%;
+}
+
 .connectButton {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
@@ -370,6 +532,27 @@ defineExpose({
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.selectWalletButton {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #4a5568;
+  border: 2px solid #e2e8f0;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.selectWalletButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #edf2f7 0%, #cbd5e0 100%);
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
