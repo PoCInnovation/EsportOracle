@@ -309,7 +309,7 @@ contract EsportOracle is Pausable {
                 addNewMatch(newMatch[i]);
 
                 // Reconstruction du match accepté pour comparaison
-                Match memory acceptedMatch = newMatch[i];
+                EsportOracleTypes.Match memory acceptedMatch = newMatch[i];
 
                 for (uint j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];

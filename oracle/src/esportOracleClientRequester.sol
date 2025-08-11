@@ -48,21 +48,5 @@ abstract contract EsportOracleClientRequester {
         return (oracle.getPendingRequestedMatches());
     }
 
-    function callMatchReceived(uint256 matchId) external virtual onlyOracle {
-        //check if match is requested
-        if (!oracle.isMatchRequested(matchId)) {
-            receiveMatch(matchId);
-        }
-        //get match request
-        EsportOracleTypes.MatchRequest memory matchRequest = oracle.getMatchRequest(requestId);
-        //check if match request is fulfilled
-        require(matchRequest.fulfilled, "Match request not fulfilled");
-        //get match by id
-        EsportOracleTypes.Match memory matchDetails = oracle.getMatchById(matchId);
-        //check if match details are valid
-        require(matchDetails.id == matchId, "Invalid match details");
-        require(matchDetails._finished, "Match not finished");
-
-        return matchDetails._winnerId;
-    }
+    function callMatchReceived(EsportOracleTypes.Match memory _match) external virtual onlyOracle {}
 }
