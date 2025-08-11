@@ -2,12 +2,12 @@
   <div class="walletSection">
     <div v-if="isConnected" class="walletInfo">
       <span class="addressDisplay">{{ shortenAddress(connectedAccount) }}</span>
-      <button @click="disconnect" class="disconnectButton" title="Disconnect wallet">
+      <button @click="confirmAndDisconnect" class="disconnectButton" title="Disconnect wallet">
         ×
       </button>
     </div>
     <div v-else class="connectSection">
-      <button 
+      <button
         @click="() => connect()" 
         class="connectButton"
         :disabled="isConnecting"
@@ -32,8 +32,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { createPublicClient, createWalletClient, custom, http, type WalletClient, type PublicClient, type Address, formatEther } from 'viem'
+import { createPublicClient, createWalletClient, custom, type WalletClient, type PublicClient, type Address, formatEther } from 'viem'
 import { mainnet, sepolia, localhost } from 'viem/chains'
+
+import { useWalletStore } from '@/stores/useWalletStore';
+import { AddOrCreateNewUser } from '@/db/queries';
+
+const walletStore = useWalletStore();
 
 /**
  * Interface for Ethereum provider (MetaMask, WalletConnect, etc.)
@@ -97,6 +102,12 @@ const buttonText = computed(() => {
   return 'Connect Wallet'
 })
 
+const confirmAndDisconnect = async () => {
+  if (confirm('Are you sure you want to disconnect your wallet?')) {
+    await disconnect()
+  }
+}
+
 /**
  * Safely retrieves the Ethereum provider from the window object
  * Handles cases where multiple wallet providers are installed with enhanced error handling
@@ -124,6 +135,7 @@ const getEthereumProvider = (): EthereumProvider | null => {
     }
     
     // Fallback to first available provider that looks stable
+    if (metamaskProvider) return metamaskProvider
     const stableProvider = ethereum.providers.find((provider: any) => {
       return provider.request && typeof provider.request === 'function'
     })
@@ -146,6 +158,19 @@ const getEthereumProvider = (): EthereumProvider | null => {
   
   console.warn('No valid Ethereum provider found')
   return null
+}
+
+const tryRevokePermissions = async (provider: EthereumProvider | null) => {
+  if (!provider || !provider.request) return
+  try {
+    // Supporting wallet_revokePermissions, others no.
+    await provider.request({
+      method: 'wallet_revokePermissions',
+      params: [{ eth_accounts: {} }]
+    })
+  } catch (e) {
+    console.log('Revoke permissions not supported by provider', e)
+  }
 }
 
 /**
@@ -185,9 +210,7 @@ const connect = async (forceSelection = false) => {
             console.log('Wallet permission revocation not supported or failed')
           })
         }
-      } catch (revokeError) {
-        console.log('Permission revocation failed, continuing with forced selection')
-      }
+      } catch {}
       
       // Force new permission request
       accounts = await provider.request({
@@ -211,12 +234,8 @@ const connect = async (forceSelection = false) => {
       throw new Error('No accounts returned from wallet')
     }
 
-    // Set wallet history flag
-    hasWalletHistory.value = true
-    localStorage.setItem('walletConnected', 'true')
-
     // Get the current chain ID from the wallet with retry logic
-    let chainIdHex: string
+    let chainIdHex: string | undefined
     let retryCount = 0
     const maxRetries = 3
     
@@ -240,25 +259,14 @@ const connect = async (forceSelection = false) => {
     const currentChain = getCurrentChain(currentChainId)
     
     // Create clients with error handling
-    let pubClient: PublicClient
-    let client: WalletClient
-    
-    try {
-      // Create public client for reading blockchain data
-      pubClient = createPublicClient({
-        chain: currentChain,
-        transport: custom(provider)
-      })
-      
-      // Create wallet client for signing transactions
-      client = createWalletClient({
-        chain: currentChain,
-        transport: custom(provider)
-      })
-    } catch (clientError) {
-      console.error('Failed to create Viem clients:', clientError)
-      throw new Error('Failed to initialize blockchain connection')
-    }
+    const pubClient = createPublicClient({
+      chain: currentChain,
+      transport: custom(provider)
+    })
+    const client = createWalletClient({
+      chain: currentChain,
+      transport: custom(provider)
+    })
     
     // Update component state with connection details
     walletClient.value = client
@@ -280,6 +288,17 @@ const connect = async (forceSelection = false) => {
       chainId: currentChainId,
       balance: balance.value
     })
+
+    // Mark that user explicitly connected (used for auto-reconnect logic)
+    localStorage.setItem('walletConnected', 'true')
+    hasWalletHistory.value = true
+
+    walletStore.setWalletData({
+      isConnected: isConnected.value,
+      account: connectedAccount.value as string,
+      chainId: chainId.value,
+      balance: balance.value
+    })
     
   } catch (err: any) {
     console.error('Connection error:', err)
@@ -297,6 +316,7 @@ const connect = async (forceSelection = false) => {
   } finally {
     isConnecting.value = false
   }
+  await AddOrCreateNewUser(connectedAccount.value);
 }
 
 /**
@@ -315,10 +335,10 @@ const forceWalletSelection = async () => {
  * Shows a confirmation dialog to prevent accidental disconnections
  */
 const disconnect = async () => {
-  const confirmDisconnect = confirm('Are you sure you want to disconnect your wallet?')
-  
-  if (!confirmDisconnect) return
-  
+
+  const provider = getEthereumProvider()
+
+  await tryRevokePermissions(provider)
   // Clear all wallet-related state
   isConnected.value = false
   connectedAccount.value = ''
@@ -331,6 +351,10 @@ const disconnect = async () => {
   // Keep wallet history for showing "Select Wallet" button
   // hasWalletHistory.value remains true
   
+  // Remove auto-connexion flag.
+  localStorage.removeItem('walletConnected')
+
+  walletStore.resetWallet();
   console.log('Wallet disconnected')
 }
 
@@ -449,24 +473,34 @@ const cleanupEventListeners = () => {
 const checkConnection = async () => {
   const provider = getEthereumProvider()
   if (!provider) return
-  
-  // Check if user has previously connected a wallet
+
   const walletConnected = localStorage.getItem('walletConnected')
   if (walletConnected === 'true') {
+    // L'utilisateur s'est déjà explicitement connecté -> autoriser auto-reconnect
     hasWalletHistory.value = true
-  }
-  
-  try {
-    const accounts = await provider.request({
-      method: 'eth_accounts'
-    }) as Address[]
-    
-    if (accounts && accounts.length > 0) {
-      // Auto-connect if previously connected
-      await connect()
+    try {
+      const accounts = await provider.request({ method: 'eth_accounts' }) as Address[]
+      if (accounts && accounts.length > 0) {
+        // auto connect uniquement si le flag est présent
+        connectedAccount.value = accounts[0]
+        await connect()
+      } else {
+        // provider n'autorise plus -> cleanup du flag
+        localStorage.removeItem('walletConnected')
+      }
+    } catch (err) {
+      console.error('Failed to check existing connection:', err)
     }
-  } catch (err) {
-    console.error('Failed to check existing connection:', err)
+  } else {
+    // pas de flag -> ne pas auto-connect, mais si provider renvoie des accounts on peut afficher le bouton "Select Wallet"
+    try {
+      const accounts = await provider.request({ method: 'eth_accounts' }) as Address[]
+      if (accounts && accounts.length > 0) {
+        hasWalletHistory.value = true
+      }
+    } catch (err) {
+      console.error('Failed to check existing connection:', err)
+    }
   }
 }
 
@@ -485,7 +519,7 @@ const shortenAddress = (address: string) => {
 onMounted(async () => {
   setupEventListeners()
   await checkConnection()
-})
+});
 
 // Watch for connection changes to update balance
 watch(isConnected, (connected) => {
@@ -506,156 +540,6 @@ defineExpose({
 })
 </script>
 
-<style scoped>
-.walletSection {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
-.connectSection {
-  display: flex;
-  flex-direction: row;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.connectButton {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.selectWalletButton {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  color: #4a5568;
-  border: 2px solid #e2e8f0;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 500;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.selectWalletButton:hover:not(:disabled) {
-  background: linear-gradient(135deg, #edf2f7 0%, #cbd5e0 100%);
-  border-color: #cbd5e0;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.connectButton:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.connectButton:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.connectButton:disabled {
-  background: linear-gradient(135deg, #a0a0a0 0%, #808080 100%);
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.walletInfo {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.addressDisplay {
-  color: #1a202c;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-}
-
-.disconnectButton {
-  background: #ef4444;
-  border: none;
-  color: #ffffff;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  width: auto;
-  height: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.disconnectButton:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
-}
-
-.errorMessage {
-  background: #fef2f2;
-  color: #dc2626;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid #fecaca;
-  font-size: 0.75rem;
-  font-weight: 500;
-  max-width: 300px;
-}
-
-/* Responsive design */
-@media (max-width: 640px) {
-  .walletSection {
-    width: 100%;
-  }
-  
-  .connectButton,
-  .walletInfo {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .addressDisplay {
-    font-size: 0.75rem;
-  }
-}
-
-/* Animation for connection state */
-.walletInfo {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+<style>
+      @import "./button.css";
 </style>

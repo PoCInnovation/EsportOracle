@@ -1,6 +1,6 @@
-import Home from '@/Home.vue'
+import Home from '@/MainHome.vue'
 import NotFound from '@/views/NotFound.vue'
-import Profil from '@/views/Profil.vue'
+import Profil from '@/views/ProfilClient.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [

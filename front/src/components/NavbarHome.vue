@@ -44,7 +44,7 @@ const toggleMenu = () => {
   margin: 0;
   padding: 0;
   width: 100%;
-}
+}a
 
 .navContainer {
   max-width: 1200px;

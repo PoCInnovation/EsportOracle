@@ -33,3 +33,6 @@ test-results/
 playwright-report/
 
 package-lock.json
+.env
+~.env
+.env~

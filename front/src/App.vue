@@ -1,13 +1,14 @@
-
 <script setup lang="ts">
 import { ref } from 'vue'
 import WalletConnect from './components/WalletConnect.vue'
 
 import Menubar from 'primevue/menubar'
-import Avatar from 'primevue/avatar'
 import Badge from 'primevue/badge'
 
 import 'primeicons/primeicons.css'
+import { useWalletStore } from '@/stores/useWalletStore.ts'
+
+const walletStore = useWalletStore()
 
 const items = ref([
   {
@@ -45,6 +46,7 @@ const items = ref([
 </script>
 
 <template>
+  <div class="dark">
   <div class="app-container">
     <Menubar :model="items">
       <template #start>
@@ -70,11 +72,9 @@ const items = ref([
       <template #end>
         <div style="display: flex; align-items: center; gap: 30px;">
           <WalletConnect style="display: inline-block;" />
-          <router-link to="/profil">
-            <a>
-              <Avatar icon="pi pi-user" size="xlarge" shape="circle"/>
-            </a>
-          </router-link>
+      <router-link v-if="walletStore.isConnected" to="/profil" class="connectButton">
+          {{ "Profil" }}
+      </router-link>
         </div>
       </template>
     </Menubar>
@@ -87,9 +87,14 @@ const items = ref([
       </RouterView>
     </main>
   </div>
+</div>
 </template>
 
+
+
 <style scoped>
+
+@import "components/button.css";
 
 
 .page-opacity-enter-active,
