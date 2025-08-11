@@ -19,7 +19,7 @@ func init() {
 }
 
 var BaseURL = "https://api.pandascore.co"
-var PandaScoreAPIToken = os.Getenv("PANDASCORE_API_TOKEN")
+var PandaScoreAPIToken string
 
 func GetTeamFromID(w http.ResponseWriter, r *http.Request) {
 	teamID := mux.Vars(r)["teamID"]

@@ -10,7 +10,7 @@
       <!-- Navigation Links -->
       <ul class="navMenu" :class="{ active: isMenuOpen }">
         <li class="navItem">
-          <a href="#" class="navLink">Option 1</a>
+          <RouterLink to="/matches" class="navLink">Matches</RouterLink>
         </li>
         <li class="navItem">
           <a href="#" class="navLink">Option 2</a>
