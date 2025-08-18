@@ -7,6 +7,7 @@ import Aura from '@primevue/themes/aura'
 import App from './App.vue'
 import router from './router'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+import Ripple from 'primevue/ripple'
 
 const blackOrangePreset = definePreset(Aura, {
   semantic: {
@@ -176,6 +177,7 @@ app.use(PrimeVue, {
 const pinia = createPinia();
 
 app.use(pinia)
+app.directive('ripple', Ripple)
 pinia.use(piniaPluginPersistedstate)
 app.use(router)
 app.mount('#app')

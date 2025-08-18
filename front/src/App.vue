@@ -19,7 +19,28 @@ const items = ref([
   {
     label: 'Matchs en direct',
     icon: 'pi pi-trophy',
-    route: '/matches'
+    items: [
+      {
+        label: 'Selector Matches',
+        icon: '',
+        route: '/matches'
+      },
+      {
+        label: 'Matches en Cours',
+        icon: '',
+        route: '/matches/current'
+      },
+      {
+        label: 'Matches à venir',
+        icon: '',
+        route: '/matches/upcoming'
+      },
+      {
+        label: 'Anciens Matches',
+        icon: '',
+        route: '/matches/past'
+      }
+    ]
   },
   {
     label: 'Tournois',
