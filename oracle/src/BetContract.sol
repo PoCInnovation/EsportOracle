@@ -139,12 +139,20 @@ contract BetContract is EsportOracleClientRequester, Ownable, ReentrancyGuard, P
     }
 
     function _callMatchReceivedInternal(EsportOracleTypes.Match memory _match) internal {
-        if (!oracle.isMatchRequested(_match._id)) {
+        EsportOracleTypes.Match memory alreadyRegistered = oracle.getMatchById(_match._id);
+        if (alreadyRegistered._id != 0) {
+            require(_match._winnerId != 0, "Match not finished");
+            return;
+        }
+
+        EsportOracleTypes.MatchRequest memory matchRequest = oracle.getMatchRequest(_match._id);
+        bool requestPending = oracle.isMatchRequested(_match._id);
+        if (!requestPending && !matchRequest.fulfilled) {
             require(address(this).balance >= matchRequestFee, "Insufficient contract balance for match request");
             this.receiveMatch{value: matchRequestFee}(_match._id);
+            matchRequest = oracle.getMatchRequest(_match._id);
         }
-        
-        EsportOracleTypes.MatchRequest memory matchRequest = oracle.getMatchRequest(_match._id);
+
         require(matchRequest.fulfilled, "Match request not fulfilled");
         require(_match._winnerId != 0, "Match not finished");
     }

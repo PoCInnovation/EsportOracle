@@ -186,29 +186,31 @@ contract BetContractTest is Test {
         assertEq(balanceAfter - balanceBefore, betAmount * 2);
     }
     
-    function testFailResolveBetBeforeDeadline() public {
+    function test_RevertResolveBetBeforeDeadline() public {
         uint256 deadline = block.timestamp + 1 hours;
         betContract.createBet("Test Match", 123, 456, deadline, 789);
-        
+
         EsportOracleTypes.Match memory matchData;
         matchData._id = 789;
         matchData._winnerId = 123;
-        
+
         vm.prank(address(mockOracle));
+        vm.expectRevert("Bet still active");
         betContract.resolveBet(0, matchData);
     }
     
-    function testFailResolveBetWrongMatchId() public {
+    function test_RevertResolveBetWrongMatchId() public {
         uint256 deadline = block.timestamp + 1 hours;
         betContract.createBet("Test Match", 123, 456, deadline, 789);
-        
+
         vm.warp(deadline + 1);
-        
+
         EsportOracleTypes.Match memory matchData;
         matchData._id = 999;
         matchData._winnerId = 123;
-        
+
         vm.prank(address(mockOracle));
+        vm.expectRevert("Match ID mismatch");
         betContract.resolveBet(0, matchData);
     }
     
@@ -258,5 +260,165 @@ contract BetContractTest is Test {
         betContract.callMatchReceived(matchData);
         
         assertTrue(true);
+    }
+
+    function testPlaceBetOnResolvedBet() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        vm.prank(user1);
+        betContract.placeBet(0, 1, 100 * 10**18);
+        
+        vm.warp(deadline + 1);
+        EsportOracleTypes.Match memory matchData;
+        matchData._id = 789;
+        matchData._winnerId = 123;
+        mockOracle.setMatchRequest(789, true);
+        
+        vm.prank(address(mockOracle));
+        betContract.resolveBet(0, matchData);
+        
+        vm.prank(user2);
+        vm.expectRevert("Pari expire");
+        betContract.placeBet(0, 2, 100 * 10**18);
+    }
+
+    function testClaimWinningsTwice() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        vm.prank(user1);
+        betContract.placeBet(0, 1, 100 * 10**18);
+        
+        vm.warp(deadline + 1);
+        EsportOracleTypes.Match memory matchData;
+        matchData._id = 789;
+        matchData._winnerId = 123;
+        mockOracle.setMatchRequest(789, true);
+        
+        vm.prank(address(mockOracle));
+        betContract.resolveBet(0, matchData);
+        
+        vm.prank(user1);
+        betContract.claimWinnings(0);
+        
+        vm.prank(user1);
+        vm.expectRevert("Gains deja reclames");
+        betContract.claimWinnings(0);
+    }
+
+    function testClaimWinningsLoser() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        vm.prank(user1);
+        betContract.placeBet(0, 1, 100 * 10**18);
+        
+        vm.warp(deadline + 1);
+        EsportOracleTypes.Match memory matchData;
+        matchData._id = 789;
+        matchData._winnerId = 456;
+        
+        mockOracle.setMatchRequest(789, true);
+        
+        vm.prank(address(mockOracle));
+        betContract.resolveBet(0, matchData);
+        
+        vm.prank(user1);
+        vm.expectRevert("Equipe perdante");
+        betContract.claimWinnings(0);
+    }
+
+    function testPauseUnpauseFunctionality() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        betContract.pause();
+        
+        vm.prank(user1);
+        vm.expectRevert();
+        betContract.placeBet(0, 1, 100 * 10**18);
+        
+        betContract.unpause();
+        
+        vm.prank(user1);
+        betContract.placeBet(0, 1, 100 * 10**18);
+        
+        BetContract.UserBet memory userBet = betContract.getUserBet(user1, 0);
+        assertEq(userBet.amount, 100 * 10**18);
+    }
+
+    function testEmergencyWithdraw() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        vm.prank(user1);
+        betContract.placeBet(0, 1, 100 * 10**18);
+        
+        uint256 balanceBefore = token.balanceOf(address(betContract));
+        
+        betContract.emergencyWithdraw(address(token), 50 * 10**18);
+        
+        uint256 balanceAfter = token.balanceOf(address(betContract));
+        assertEq(balanceAfter, balanceBefore - 50 * 10**18);
+    }
+
+    function testNonOwnerFunctions() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        betContract.setMatchRequestFee(0.002 ether);
+        
+        vm.prank(user1);
+        vm.expectRevert();
+        betContract.pause();
+        
+        vm.prank(user1);
+        vm.expectRevert();
+        betContract.emergencyWithdraw(address(token), 100 * 10**18);
+        
+        vm.prank(user1);
+        vm.expectRevert();
+        betContract.withdrawETH(0.1 ether);
+    }
+
+    function testInvalidTeamChoice() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        vm.prank(user1);
+        vm.expectRevert("Equipe invalide");
+        betContract.placeBet(0, 0, 100 * 10**18);
+        
+        vm.prank(user1);
+        vm.expectRevert("Equipe invalide");
+        betContract.placeBet(0, 3, 100 * 10**18);
+    }
+
+    function testZeroAmountBet() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        betContract.createBet("Test Match", 123, 456, deadline, 789);
+        
+        vm.prank(user1);
+        vm.expectRevert("Montant invalide");
+        betContract.placeBet(0, 1, 0);
+    }
+
+    function testInvalidBetId() public {
+        vm.expectRevert("Invalid bet ID");
+        betContract.getBet(999);
+        
+        vm.expectRevert("Invalid bet ID");
+        betContract.getBetParticipants(999);
+        
+        vm.prank(user1);
+        vm.expectRevert("Invalid bet ID");
+        betContract.placeBet(999, 1, 100 * 10**18);
+    }
+
+    function testDeadlineValidation() public {
+        uint256 pastDeadline = block.timestamp - 1;
+        
+        vm.expectRevert("Deadline must be in the future");
+        betContract.createBet("Test Match", 123, 456, pastDeadline, 789);
     }
 }

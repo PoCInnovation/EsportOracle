@@ -101,13 +101,17 @@ contract TestOracleMatchResolution is Script {
         console.log("\n7. Simulation: Preparation des donnees de match...");
         
         // Créer des données de match simulées (Real Madrid gagne)
+        EsportOracleTypes.Opponents[] memory opponents = new EsportOracleTypes.Opponents[](0);
+        EsportOracleTypes.Games[] memory games = new EsportOracleTypes.Games[](0);
+        EsportOracleTypes.Result[] memory results = new EsportOracleTypes.Result[](0);
+
         EsportOracleTypes.Match memory matchData = EsportOracleTypes.Match({
             _id: 999,
+            _opponents: opponents,
+            _game: games,
+            _result: results,
             _winnerId: 111, // Real Madrid gagne
-            _teamAId: 111,
-            _teamBId: 222,
-            _status: true,   // Match terminé
-            _exist: true     // Match existe
+            _beginAt: block.timestamp
         });
         
         console.log("Match simule - Gagnant: Real Madrid (ID 111)");
