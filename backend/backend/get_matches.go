@@ -21,19 +21,7 @@ func init() {
 var BaseURL = "https://api.pandascore.co"
 var PandaScoreAPIToken string
 
-func GetTeamFromID(w http.ResponseWriter, r *http.Request) {
-	teamID := mux.Vars(r)["teamID"]
-	fmt.Println("Fetching team with ID:", teamID)
-	url := fmt.Sprintf("%s/csgo/teams?filter[acronym]=%s", BaseURL, teamID)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("http.NewRequest(\"GET\", url, nil): %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	req.Header.Add("Authorization", "Bearer "+PandaScoreAPIToken)
-	req.Header.Add("Accept", "application/json")
-
+func SendResponseClient(w http.ResponseWriter, req *http.Request) {
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("http.DefaultClient.Do(req): %v", err), http.StatusInternalServerError)
@@ -52,6 +40,25 @@ func GetTeamFromID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("io.Copy(w, res.Body): %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+func GetTeamFromID(w http.ResponseWriter, r *http.Request) {
+	teamID := mux.Vars(r)["teamID"]
+	fmt.Println("Fetching team with ID:", teamID)
+	url := fmt.Sprintf("%s/csgo/teams?filter[acronym]=%s", BaseURL, teamID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("http.NewRequest(\"GET\", url, nil): %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	req.Header.Add("Authorization", "Bearer "+PandaScoreAPIToken)
+	req.Header.Add("Accept", "application/json")
+
+	SendResponseClient(w, req)
+
+	fmt.Println("Successfully fetched team from ID from PandaScore API")
+
 }
 
 func GetMatchByID(w http.ResponseWriter, r *http.Request) {
@@ -67,27 +74,19 @@ func GetMatchByID(w http.ResponseWriter, r *http.Request) {
 	req.Header.Add("Authorization", "Bearer "+PandaScoreAPIToken)
 	req.Header.Add("Accept", "application/json")
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("http.DefaultClient.Do(req): %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		http.Error(w, fmt.Sprintf("unexpected status code: %d", res.StatusCode), res.StatusCode)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := io.Copy(w, res.Body); err != nil {
-		http.Error(w, fmt.Sprintf("io.Copy(w, res.Body): %v", err), http.StatusInternalServerError)
-		return
-	}
+	SendResponseClient(w, req)
 }
 
 func GetCurrentMatches(w http.ResponseWriter, r *http.Request) {
-	url := fmt.Sprintf("%s/matches/running", BaseURL)
+	matchID := mux.Vars(r)["teamID"]
+
+	var url string;
+
+	if (matchID != "") {
+		url = fmt.Sprintf("%s/teams/%s/matches/running", BaseURL, matchID)
+	} else {
+		url = fmt.Sprintf("%s/matches/running", BaseURL)
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("http.NewRequest(\"GET\", url, nil): %v", err), http.StatusInternalServerError)
@@ -97,33 +96,69 @@ func GetCurrentMatches(w http.ResponseWriter, r *http.Request) {
 	req.Header.Add("Authorization", "Bearer "+PandaScoreAPIToken)
 	req.Header.Add("Accept", "application/json")
 
-	res, err := http.DefaultClient.Do(req)
+	SendResponseClient(w, req)
+
+	fmt.Println("Successfully fetched current matches from PandaScore API")
+}
+
+func GetPastMatches(w http.ResponseWriter, r *http.Request) {
+	matchID := mux.Vars(r)["teamID"]
+
+	var url string;
+
+	if (matchID != "") {
+		url = fmt.Sprintf("%s/teams/%s/matches?filter[status]=finished&sort=-begin_at&per_page=50&page=1", BaseURL, matchID) //verifier les endpoints.
+	} else {
+		url = fmt.Sprintf("%s/matches?filter[status]=finished&sort=-begin_at&per_page=50&page=1", BaseURL)
+	}
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("http.NewRequest(\"GET\", url, nil): %v", err), http.StatusInternalServerError)
+		return
+	}
+	req.Header.Add("Authorization", "Bearer "+PandaScoreAPIToken)
+	req.Header.Add("Accept", "application/json")
+
+	SendResponseClient(w, req)
+
+	fmt.Println("Successfully fetched past matches from PandaScore API")
+}
+
+func GetUpcomingMatches(w http.ResponseWriter, r *http.Request) {
+	matchID := mux.Vars(r)["teamID"]
+
+	var url string;
+
+	if (matchID != "") {
+		url = fmt.Sprintf("%s/teams/%s/matches?filter[status]=not_started&sort=begin_at&per_page=50&page=1", BaseURL, matchID)
+	} else {
+		url = fmt.Sprintf("%s/matches?filter[status]=not_started&sort=begin_at&per_page=50&page=1", BaseURL)
+	}
+	req, err := http.NewRequest("GET", url, nil)
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("http.DefaultClient.Do(req): %v", err), http.StatusInternalServerError)
 		return
 	}
-	defer res.Body.Close()
+	req.Header.Add("Authorization", "Bearer "+PandaScoreAPIToken)
+	req.Header.Add("Accept", "application/json")
 
-	if res.StatusCode != http.StatusOK {
-		http.Error(w, fmt.Sprintf("unexpected status code: %d", res.StatusCode), res.StatusCode)
-		return
-	}
+	SendResponseClient(w, req)
 
-	// Copy the response body directly to the client
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := io.Copy(w, res.Body); err != nil {
-		http.Error(w, fmt.Sprintf("io.Copy(w, res.Body): %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	fmt.Println("Successfully fetched matches from PandaScore API")
+	fmt.Println("Successfully fetched upcoming matches from PandaScore API")
 }
 
 // SetupRoutes registers the REST API endpoints and returns a mux.Router.
 func SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
-	router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
-	router.HandleFunc("/CurrentMatches", GetCurrentMatches).Methods("GET")
 	router.HandleFunc("/MatchByID/{matchID}", GetMatchByID).Methods("GET")
+	router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
+	router.HandleFunc("/matches/current", GetCurrentMatches).Methods("GET")
+	router.HandleFunc("/matches/current/{teamID}", GetCurrentMatches).Methods("GET")
+	router.HandleFunc("/matches/past", GetPastMatches).Methods("GET")
+	router.HandleFunc("/matches/past/{teamID}", GetPastMatches).Methods("GET")
+	router.HandleFunc("/matches/upcoming", GetUpcomingMatches).Methods("GET")
+	router.HandleFunc("/matches/upcoming/{teamID}", GetUpcomingMatches).Methods("GET")
 	return router
 }
