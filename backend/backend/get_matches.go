@@ -125,5 +125,6 @@ func SetupRoutes() *mux.Router {
 	router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
 	router.HandleFunc("/CurrentMatches", GetCurrentMatches).Methods("GET")
 	router.HandleFunc("/MatchByID/{matchID}", GetMatchByID).Methods("GET")
+	router.HandleFunc("/tx", AddTransaction).Methods("POST")
 	return router
 }
