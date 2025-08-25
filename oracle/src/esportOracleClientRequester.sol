@@ -2,18 +2,23 @@
 pragma solidity ^0.8.20;
 
 import "./esportOracleRequester.sol";
-import "./matchRequest.sol";
+import "./esportOracleTypes.sol";
 
-contract EsportOracleClientRequester is EsportOracleRequester {
-    using lib for lib.MatchRequest;
-    uint256 requestId;
-    InterfaceOracle public oracle;
+abstract contract EsportOracleClientRequester {
+    address public immutable _owner;
+    using EsportOracleTypes for EsportOracleTypes.MatchRequest;
+    uint256 public requestId;
+    InterfaceOracle public immutable oracle;
 
     constructor(address _oracle) {
         _owner = msg.sender;
         oracle = InterfaceOracle(_oracle);
     }
 
+    modifier onlyOracle() {
+        require(msg.sender == address(oracle), "Only the oracle contract can call this function");
+        _;
+    }
     /**
      * @notice Allow a user to request a match by providing the match ID
      * @param matchId Id of the match
@@ -22,7 +27,6 @@ contract EsportOracleClientRequester is EsportOracleRequester {
     function receiveMatch(uint256 matchId) payable external returns (uint256) {
         require(oracle.isMatchRequested(matchId) == false, "Match already requested");
         requestId = oracle.requestMatch{value: msg.value}(matchId);
-        oracle.markRequestsFulfilled(matchId);
         return requestId;
     }
 
@@ -31,8 +35,8 @@ contract EsportOracleClientRequester is EsportOracleRequester {
      * @param matchId Id of the request
      * @return MatchRequest struct containing the details of the request
      */
-    function showMatch(uint256 matchId) external view returns(lib.MatchRequest memory) {
-        return (oracle.getMatchRequest(matchId));
+    function showMatch(uint256 matchId) external view returns(EsportOracleTypes.Match memory) {
+        return (oracle.getMatchById(matchId));
     }
 
     /**
@@ -42,4 +46,6 @@ contract EsportOracleClientRequester is EsportOracleRequester {
     function showPendingRequestedMatches() external view returns (uint256[] memory) {
         return (oracle.getPendingRequestedMatches());
     }
+
+    function callMatchReceived(EsportOracleTypes.Match memory _match) external virtual onlyOracle {}
 }

@@ -1,3 +1,5 @@
 *.json
 .env
+.env*
+contract_match_*
 vendor/
