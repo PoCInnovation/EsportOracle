@@ -12,12 +12,19 @@
 
     <div class="match-content">
       <div class="team" v-if="match.opponents && match.opponents[0]">
-        <img 
-          :src="match.opponents[0].opponent.image_url || '/default-team.png'" 
-          :alt="match.opponents[0].opponent.name"
-          class="team-logo"
-          @error="handleImageError"
-        >
+        <div class="team-logo-container">
+          <img 
+            v-if="getTeamImageUrl(match.opponents[0])"
+            :src="getTeamImageUrl(match.opponents[0])" 
+            :alt="match.opponents[0].opponent.name"
+            class="team-logo"
+            @error="(e) => handleImageError(e, 0)"
+            @load="handleImageLoad"
+          >
+          <div v-else class="team-logo-fallback">
+            <span class="team-initials">{{ getTeamInitials(match.opponents[0].opponent.name) }}</span>
+          </div>
+        </div>
         <div class="team-info">
           <h3 class="team-name">{{ match.opponents[0].opponent.name }}</h3>
           <p class="team-acronym">{{ match.opponents[0].opponent.acronym }}</p>
@@ -33,12 +40,19 @@
       </div>
 
       <div class="team" v-if="match.opponents && match.opponents[1]">
-        <img 
-          :src="match.opponents[1].opponent.image_url || '/default-team.png'" 
-          :alt="match.opponents[1].opponent.name"
-          class="team-logo"
-          @error="handleImageError"
-        >
+        <div class="team-logo-container">
+          <img 
+            v-if="getTeamImageUrl(match.opponents[1])"
+            :src="getTeamImageUrl(match.opponents[1])" 
+            :alt="match.opponents[1].opponent.name"
+            class="team-logo"
+            @error="(e) => handleImageError(e, 1)"
+            @load="handleImageLoad"
+          >
+          <div v-else class="team-logo-fallback">
+            <span class="team-initials">{{ getTeamInitials(match.opponents[1].opponent.name) }}</span>
+          </div>
+        </div>
         <div class="team-info">
           <h3 class="team-name">{{ match.opponents[1].opponent.name }}</h3>
           <p class="team-acronym">{{ match.opponents[1].opponent.acronym }}</p>
@@ -59,6 +73,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 
 /**
  * Interface for match data structure from PandaScore API
@@ -77,7 +92,7 @@ interface Match {
       id: number
       name: string
       acronym: string
-      image_url?: string
+      image_url?: string | null
     }
   }>
   league?: {
@@ -94,6 +109,46 @@ interface Match {
 const props = defineProps<{
   match: Match
 }>()
+
+// Track failed images to avoid fallback loops
+const failedImages = ref<Set<string>>(new Set())
+
+/**
+ * Safely gets team image URL with null/undefined checks
+ * @param opponent - Team opponent object
+ * @returns Valid image URL or null
+ */
+const getTeamImageUrl = (opponent: any): string | null => {
+  if (!opponent?.opponent?.image_url) return null
+  
+  const url = opponent.opponent.image_url.trim()
+  if (!url || url === 'null' || url === 'undefined' || failedImages.value.has(url)) {
+    return null
+  }
+  
+  // Basic URL validation
+  try {
+    new URL(url)
+    return url
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Gets team initials for fallback display
+ * @param teamName - Full team name
+ * @returns Team initials (max 3 characters)
+ */
+const getTeamInitials = (teamName: string): string => {
+  if (!teamName) return '?'
+  
+  return teamName
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase())
+    .join('')
+    .substring(0, 3)
+}
 
 /**
  * Formats the date string into a readable format
@@ -154,12 +209,29 @@ const getStatusText = (status: string): string => {
 }
 
 /**
- * Handles image loading errors by setting a default image
+ * Handles image loading errors by tracking failed URLs
  * @param event - Image error event
+ * @param teamIndex - Index of the team (0 or 1)
  */
-const handleImageError = (event: Event) => {
+const handleImageError = (event: Event, teamIndex: number) => {
   const img = event.target as HTMLImageElement
-  img.src = '/default-team.png'
+  const url = img.src
+  
+  if (url) {
+    failedImages.value.add(url)
+  }
+  
+  // Force component to re-render by clearing the src
+  img.src = ''
+}
+
+/**
+ * Handles successful image loading
+ * @param event - Image load event
+ */
+const handleImageLoad = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  img.style.opacity = '1'
 }
 </script>
 
@@ -260,12 +332,38 @@ const handleImageError = (event: Event) => {
   text-align: right;
 }
 
+.team-logo-container {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+
 .team-logo {
   width: 48px;
   height: 48px;
   border-radius: 8px;
   object-fit: cover;
   border: 2px solid rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.team-logo-fallback {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.team-initials {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
 }
 
 .team-info {
@@ -375,6 +473,20 @@ const handleImageError = (event: Event) => {
   .team-logo {
     width: 40px;
     height: 40px;
+  }
+  
+  .team-logo-container {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .team-logo-fallback {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .team-initials {
+    font-size: 0.75rem;
   }
   
   .team-name {
