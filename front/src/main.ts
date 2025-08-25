@@ -2,6 +2,8 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
+import './assets/main.css'
+import './components/matches.css'
 import { definePreset } from '@primevue/themes'
 import Aura from '@primevue/themes/aura'
 import App from './App.vue'

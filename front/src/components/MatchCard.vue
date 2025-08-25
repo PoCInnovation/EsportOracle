@@ -1,16 +1,16 @@
 <template>
-  <div class="match-card">
-    <div class="match-header">
-      <div class="match-status">
-        <span class="status-indicator" :class="getStatusClass(match.status)"></span>
-        <span class="status-text">{{ getStatusText(match.status) }}</span>
+  <article class="match-card">
+    <div class="status-bar">
+      <div class="status-badge" :class="getStatusClass(match.status)">
+        <span class="status-icon"></span>
+        {{ getStatusText(match.status) }}
       </div>
       <div class="match-time">
         {{ formatDate(match.begin_at || match.scheduled_at) }}
       </div>
     </div>
 
-    <div class="match-content">
+    <div class="teams-section">
       <div class="team" v-if="match.opponents && match.opponents[0]">
         <div class="team-logo-container">
           <img 
@@ -18,26 +18,20 @@
             :src="getTeamImageUrl(match.opponents[0])" 
             :alt="match.opponents[0].opponent.name"
             class="team-logo"
-            @error="(e) => handleImageError(e, 0)"
+            @error="handleImageError"
             @load="handleImageLoad"
           >
-          <div v-else class="team-logo-fallback">
-            <span class="team-initials">{{ getTeamInitials(match.opponents[0].opponent.name) }}</span>
+          <div v-else class="team-fallback">
+            {{ getTeamInitials(match.opponents[0].opponent.name) }}
           </div>
         </div>
         <div class="team-info">
           <h3 class="team-name">{{ match.opponents[0].opponent.name }}</h3>
-          <p class="team-acronym">{{ match.opponents[0].opponent.acronym }}</p>
+          <span class="team-tag">{{ match.opponents[0].opponent.acronym }}</span>
         </div>
       </div>
 
-      <div class="vs-section">
-        <span class="vs-text">VS</span>
-        <div class="match-details">
-          <p class="game-type">{{ match.videogame?.name || 'CS:GO' }}</p>
-          <p class="match-type">{{ match.match_type || 'Best of 3' }}</p>
-        </div>
-      </div>
+      <div class="vs-divider">VS</div>
 
       <div class="team" v-if="match.opponents && match.opponents[1]">
         <div class="team-logo-container">
@@ -46,47 +40,38 @@
             :src="getTeamImageUrl(match.opponents[1])" 
             :alt="match.opponents[1].opponent.name"
             class="team-logo"
-            @error="(e) => handleImageError(e, 1)"
+            @error="handleImageError"
             @load="handleImageLoad"
           >
-          <div v-else class="team-logo-fallback">
-            <span class="team-initials">{{ getTeamInitials(match.opponents[1].opponent.name) }}</span>
+          <div v-else class="team-fallback">
+            {{ getTeamInitials(match.opponents[1].opponent.name) }}
           </div>
         </div>
         <div class="team-info">
           <h3 class="team-name">{{ match.opponents[1].opponent.name }}</h3>
-          <p class="team-acronym">{{ match.opponents[1].opponent.acronym }}</p>
+          <span class="team-tag">{{ match.opponents[1].opponent.acronym }}</span>
         </div>
       </div>
     </div>
 
-    <div class="match-footer" v-if="match.league || match.tournament">
+    <div class="tournament-section" v-if="match.league || match.tournament">
       <div class="tournament-info">
-        <i class="pi pi-trophy"></i>
-        <span>{{ match.league?.name || match.tournament?.name || 'Tournament' }}</span>
+        <span class="tournament-icon">🏆</span>
+        <span class="tournament-name">{{ match.league?.name || match.tournament?.name }}</span>
       </div>
-      <div class="match-id">
-        #{{ match.id }}
-      </div>
+      <span class="match-id">#{{ match.id }}</span>
     </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 
-/**
- * Interface for match data structure from PandaScore API
- */
 interface Match {
   id: number
   status: string
   begin_at?: string
   scheduled_at?: string
-  match_type?: string
-  videogame?: {
-    name: string
-  }
   opponents?: Array<{
     opponent: {
       id: number
@@ -95,157 +80,76 @@ interface Match {
       image_url?: string | null
     }
   }>
-  league?: {
-    name: string
-  }
-  tournament?: {
-    name: string
-  }
+  league?: { name: string }
+  tournament?: { name: string }
 }
 
-/**
- * Component props
- */
-const props = defineProps<{
-  match: Match
-}>()
-
-// Track failed images to avoid fallback loops
+const props = defineProps<{ match: Match }>()
 const failedImages = ref<Set<string>>(new Set())
 
-/**
- * Safely gets team image URL with null/undefined checks
- * @param opponent - Team opponent object
- * @returns Valid image URL or null
- */
 const getTeamImageUrl = (opponent: any): string | null => {
   if (!opponent?.opponent?.image_url) return null
-  
   const url = opponent.opponent.image_url.trim()
-  if (!url || url === 'null' || url === 'undefined' || failedImages.value.has(url)) {
-    return null
-  }
-  
-  // Basic URL validation
-  try {
-    new URL(url)
-    return url
-  } catch {
-    return null
-  }
+  if (!url || url === 'null' || failedImages.value.has(url)) return null
+  try { new URL(url); return url } catch { return null }
 }
 
-/**
- * Gets team initials for fallback display
- * @param teamName - Full team name
- * @returns Team initials (max 3 characters)
- */
 const getTeamInitials = (teamName: string): string => {
   if (!teamName) return '?'
-  
-  return teamName
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase())
-    .join('')
-    .substring(0, 3)
+  return teamName.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 3)
 }
 
-/**
- * Formats the date string into a readable format
- * @param dateString - ISO date string from API
- * @returns Formatted date and time string
- */
 const formatDate = (dateString?: string): string => {
   if (!dateString) return 'Time TBD'
-  
   const date = new Date(dateString)
   return date.toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   })
 }
 
-/**
- * Returns the appropriate CSS class for match status
- * @param status - Match status from API
- * @returns CSS class name
- */
 const getStatusClass = (status: string): string => {
   switch (status?.toLowerCase()) {
-    case 'running':
-    case 'live':
-      return 'status-live'
-    case 'finished':
-      return 'status-finished'
-    case 'not_started':
-    case 'upcoming':
-      return 'status-upcoming'
-    default:
-      return 'status-default'
+    case 'running': case 'live': return 'status-live'
+    case 'finished': return 'status-finished'
+    case 'not_started': case 'upcoming': return 'status-upcoming'
+    default: return 'status-default'
   }
 }
 
-/**
- * Returns human-readable status text
- * @param status - Match status from API
- * @returns Formatted status text
- */
 const getStatusText = (status: string): string => {
   switch (status?.toLowerCase()) {
-    case 'running':
-    case 'live':
-      return 'EN DIRECT'
-    case 'finished':
-      return 'TERMINÉ'
-    case 'not_started':
-    case 'upcoming':
-      return 'À VENIR'
-    default:
-      return status?.toUpperCase() || 'INCONNU'
+    case 'running': case 'live': return 'LIVE'
+    case 'finished': return 'FINISHED'
+    case 'not_started': case 'upcoming': return 'UPCOMING'
+    default: return status?.toUpperCase() || 'UNKNOWN'
   }
 }
 
-/**
- * Handles image loading errors by tracking failed URLs
- * @param event - Image error event
- * @param teamIndex - Index of the team (0 or 1)
- */
-const handleImageError = (event: Event, teamIndex: number) => {
+const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement
-  const url = img.src
-  
-  if (url) {
-    failedImages.value.add(url)
-  }
-  
-  // Force component to re-render by clearing the src
+  if (img.src) failedImages.value.add(img.src)
   img.src = ''
 }
 
-/**
- * Handles successful image loading
- * @param event - Image load event
- */
 const handleImageLoad = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.style.opacity = '1'
+  (event.target as HTMLImageElement).style.opacity = '1'
 }
 </script>
 
 <style scoped>
 .match-card {
-  background: linear-gradient(135deg, #1a1d29 0%, #2d3748 100%);
-  border-radius: 16px;
-  padding: 1.5rem;
-  margin: 1rem 0;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  position: relative;
+  background: rgba(26, 26, 26, 0.95);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 2rem;
+  padding: 2rem;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(25px);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .match-card::before {
@@ -254,77 +158,268 @@ const handleImageLoad = (event: Event) => {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, transparent 50%, rgba(251, 146, 60, 0.08) 100%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.match-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, transparent, rgba(249, 115, 22, 0.1), transparent);
+  animation: rotate-slow 25s linear infinite;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
 }
 
 .match-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 48px rgba(102, 126, 234, 0.2);
+  transform: translateY(-12px) scale(1.03);
+  box-shadow: 
+    0 10px 20px rgba(249, 115, 22, 0.1),
+    0 0 0 1px rgba(249, 115, 22, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: #fb923c64;
 }
 
-.match-header {
+.match-card:hover::before {
+  opacity: 1;
+}
+
+.match-card:hover::after {
+  opacity: 0.3;
+}
+
+.status-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  z-index: 2;
 }
 
-.match-status {
+.status-badge {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 2rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.status-indicator {
-  width: 8px;
-  height: 8px;
+.status-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.status-badge:hover::before {
+  left: 100%;
+}
+
+.status-live { 
+  background: rgba(239, 68, 68, 0.15); 
+  color: #ef4444; 
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);
+}
+
+.status-upcoming { 
+  background: rgba(59, 130, 246, 0.15); 
+  color: #60a5fa; 
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+}
+
+.status-finished { 
+  background: rgba(107, 114, 128, 0.15); 
+  color: #9ca3af; 
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  box-shadow: 0 4px 20px rgba(107, 114, 128, 0.1);
+}
+
+.status-default { 
+  background: rgba(156, 163, 175, 0.15); 
+  color: #9ca3af; 
+  border: 1px solid rgba(156, 163, 175, 0.3);
+  box-shadow: 0 4px 20px rgba(156, 163, 175, 0.1);
+}
+
+.status-icon {
+  width: 0.6rem;
+  height: 0.6rem;
   border-radius: 50%;
-  animation: pulse 2s infinite;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
 }
 
-.status-live {
-  background-color: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+.status-live .status-icon { 
+  animation: pulse-bright 1.5s infinite;
+  box-shadow: 0 0 15px currentColor;
 }
 
-.status-finished {
-  background-color: #6b7280;
-}
-
-.status-upcoming {
-  background-color: #3b82f6;
-}
-
-.status-default {
-  background-color: #9ca3af;
-}
-
-.status-text {
-  color: #ffffff;
+.match-time { 
+  color: #e5e5e5; 
+  font-size: 0.9rem; 
   font-weight: 600;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  position: relative;
+  z-index: 2;
 }
 
-.match-time {
-  color: #9ca3af;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.match-content {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 1.5rem;
+.teams-section {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 2;
 }
 
 .team {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 1;
+  min-width: 0;
+  transition: all 0.3s ease;
+}
+
+.team:hover {
+  transform: scale(1.02);
+}
+
+.team-logo-container {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  background: rgba(45, 45, 45, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  overflow: hidden;
+  flex-shrink: 0;
+  backdrop-filter: blur(15px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.team-logo-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.team-logo-container:hover {
+  border-color: #f97316;
+  transform: scale(1.1) rotate(2deg);
+  box-shadow: 
+    0 8px 25px rgba(249, 115, 22, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.team-logo-container:hover::before {
+  opacity: 1;
+}
+
+.team-logo {
+  width: 80%;
+  height: 80%;
+  object-fit: cover;
+  opacity: 0;
+  transition: all 0.4s ease;
+  filter: brightness(1.1) contrast(1.05);
+  border-radius: 0.5rem;
+}
+
+.team-fallback {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.team-info { 
+  flex: 1; 
+  min-width: 0; 
+  transition: all 0.3s ease;
+}
+
+.team-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.team:hover .team-name {
+  color: #fb923c;
+  transform: translateX(2px);
+}
+
+.team-tag {
+  font-size: 0.8rem;
+  color: #a3a3a3;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vs-divider {
+  margin: 0 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #f97316;
+  background: linear-gradient(135deg, #f97316, #fb923c, #fbbf24);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  flex-shrink: 0;
+  animation: pulse-vs 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.5));
+  transition: all 0.3s ease;
+}
+
+.match-card:hover .vs-divider {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 15px rgba(249, 115, 22, 0.8));
 }
 
 .team:last-child {
@@ -332,181 +427,127 @@ const handleImageLoad = (event: Event) => {
   text-align: right;
 }
 
-.team-logo-container {
-  position: relative;
-  width: 48px;
-  height: 48px;
+.team:last-child .team-info { 
+  text-align: right; 
 }
 
-.team-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.team-logo-fallback {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-.team-initials {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 0.875rem;
-  letter-spacing: 0.05em;
-}
-
-.team-info {
-  flex: 1;
-}
-
-.team-name {
-  color: #ffffff;
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.team-acronym {
-  color: #9ca3af;
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin: 0.25rem 0 0 0;
-}
-
-.vs-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.vs-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 0.875rem;
-  letter-spacing: 0.1em;
-  margin-bottom: 0.5rem;
-}
-
-.match-details {
-  color: #9ca3af;
-  font-size: 0.75rem;
-}
-
-.game-type {
-  margin: 0;
-  font-weight: 600;
-}
-
-.match-type {
-  margin: 0.25rem 0 0 0;
-  font-weight: 400;
-}
-
-.match-footer {
+.tournament-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  z-index: 2;
 }
 
 .tournament-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: #9ca3af;
-  font-size: 0.875rem;
-  font-weight: 500;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
 }
 
-.tournament-info i {
-  color: #fbbf24;
+.tournament-name {
+  color: #e5e5e5;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .match-id {
-  color: #6b7280;
+  color: #a3a3a3;
   font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
   font-weight: 600;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .match-card {
-    padding: 1rem;
-    margin: 0.5rem 0;
-  }
-  
-  .match-content {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .team {
-    justify-content: center;
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .team:last-child {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .team-logo {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .team-logo-container {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .team-logo-fallback {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .team-initials {
-    font-size: 0.75rem;
-  }
-  
-  .team-name {
-    font-size: 1rem;
-  }
+.match-id:hover {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.3);
+  color: #fb923c;
 }
 
-/* Animation for live status */
-@keyframes pulse {
-  0% {
+@keyframes pulse-bright { 
+  0%, 100% { 
+    opacity: 1; 
+    box-shadow: 0 0 15px currentColor;
+  } 
+  50% { 
+    opacity: 0.7; 
+    box-shadow: 0 0 25px currentColor;
+  } 
+}
+
+@keyframes pulse-vs {
+  0%, 100% {
     transform: scale(1);
-    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.5));
   }
   50% {
-    transform: scale(1.2);
-    opacity: 0.8;
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.7));
   }
-  100% {
-    transform: scale(1);
-    opacity: 1;
+}
+
+@keyframes rotate-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .teams-section { 
+    flex-direction: column; 
+    gap: 1rem; 
+  }
+  
+  .team { 
+    width: 100%; 
+    justify-content: flex-start; 
+  }
+  
+  .team:last-child { 
+    flex-direction: row; 
+    text-align: left; 
+  }
+  
+  .team:last-child .team-info { 
+    text-align: left; 
+  }
+  
+  .vs-divider { 
+    transform: rotate(90deg); 
+    font-size: 1.5rem; 
+    margin: 0;
+  }
+  
+  .tournament-section { 
+    flex-direction: column; 
+    gap: 0.75rem; 
+    text-align: center; 
+  }
+  
+  .status-bar { 
+    flex-direction: column; 
+    gap: 0.75rem; 
+    text-align: center; 
+  }
+
+  .match-card {
+    padding: 1.5rem;
   }
 }
 </style>

@@ -1,49 +1,117 @@
 <template>
   <div class="walletSection">
+    <!-- Connected State -->
     <div v-if="isConnected" class="walletInfo">
-      <span class="addressDisplay">{{ shortenAddress(connectedAccount) }}</span>
+      <div class="walletIndicator">
+        <div class="connectedDot"></div>
+        <span class="addressDisplay">{{ shortenAddress(connectedAccount) }}</span>
+        <span class="chainBadge">{{ getChainName(chainId) }}</span>
+      </div>
       <button @click="confirmAndDisconnect" class="disconnectButton" title="Disconnect wallet">
-        ×
+        <i class="pi pi-sign-out"></i>
       </button>
     </div>
+
+    <!-- Disconnected State -->
     <div v-else class="connectSection">
       <button
         @click="() => connect()" 
         class="connectButton"
         :disabled="isConnecting"
       >
+        <i class="pi pi-wallet"></i>
         {{ isConnecting ? 'Connecting...' : buttonText }}
       </button>
+      
+      <!-- Wallet Selection Button -->
       <button 
-        v-if="hasWalletHistory"
-        @click="() => forceWalletSelection()" 
+        v-if="hasWalletHistory || hasMultipleWallets"
+        @click="toggleWalletSelector" 
         class="selectWalletButton"
         :disabled="isConnecting"
         title="Choose a different wallet"
       >
-        Select Wallet
+        <i class="pi pi-th-large"></i>
       </button>
     </div>
-    <div v-if="error" class="errorMessage">
+
+    <!-- Wallet Selector Popup -->
+    <div v-if="showWalletSelector" class="walletSelectorOverlay" @click="closeWalletSelector">
+      <div class="walletSelectorModal" @click.stop>
+        <div class="modalHeader">
+          <h3>Connect Wallet</h3>
+          <button @click="closeWalletSelector" class="closeButton">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        
+        <div class="walletOptions">
+          <button 
+            v-for="wallet in availableWallets" 
+            :key="wallet.id"
+            @click="connectWithWallet(wallet)"
+            class="walletOption"
+            :disabled="isConnecting"
+          >
+            <div class="walletIcon">
+              <i :class="wallet.icon"></i>
+            </div>
+            <div class="walletDetails">
+              <span class="walletName">{{ wallet.name }}</span>
+              <span class="walletStatus">{{ wallet.status }}</span>
+            </div>
+            <div class="walletAction">
+              <i class="pi pi-chevron-right"></i>
+            </div>
+          </button>
+        </div>
+        
+        <div v-if="error" class="errorMessage">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ error }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Global Error Display -->
+    <div v-if="error && !showWalletSelector" class="errorMessage">
+      <i class="pi pi-exclamation-triangle"></i>
       {{ error }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { createPublicClient, createWalletClient, custom, type WalletClient, type PublicClient, type Address, formatEther } from 'viem'
 import { mainnet, sepolia, localhost } from 'viem/chains'
+import { useWalletStore } from '@/stores/useWalletStore'
+import { AddOrCreateNewUser } from '@/db/queries'
 
-import { useWalletStore } from '@/stores/useWalletStore';
-import { AddOrCreateNewUser } from '@/db/queries';
+// Store
+const walletStore = useWalletStore()
 
-const walletStore = useWalletStore();
+// Component reactive state
+const isConnected = ref(false)
+const isConnecting = ref(false)
+const connectedAccount = ref<Address | ''>('')
+const walletClient = ref<WalletClient | null>(null)
+const publicClient = ref<PublicClient | null>(null)
+const chainId = ref<number | null>(null)
+const balance = ref<string>('')
+const error = ref<string>('')
+const hasWalletHistory = ref(false)
+const showWalletSelector = ref(false)
 
-/**
- * Interface for Ethereum provider (MetaMask, WalletConnect, etc.)
- * Defines the standard methods and events that wallet providers should implement
- */
+// Props
+interface Props {
+  buttonText?: string
+}
+const props = withDefaults(defineProps<Props>(), {
+  buttonText: 'Connect Wallet'
+})
+
+// Ethereum provider interface
 interface EthereumProvider {
   request(args: { method: string; params?: any[] }): Promise<any>
   on(event: string, handler: (...args: any[]) => void): void
@@ -51,36 +119,40 @@ interface EthereumProvider {
   isMetaMask?: boolean
 }
 
-/**
- * Extend the global Window interface to include the ethereum property
- * This allows TypeScript to recognize window.ethereum without type errors
- */
 declare global {
   interface Window {
     ethereum?: EthereumProvider
   }
 }
 
-/**
- * Reactive state management for wallet connection
- * These refs track the current state of the wallet connection and user interaction
- */
-const isConnected = ref(false)          // Whether a wallet is currently connected
-const isConnecting = ref(false)         // Whether a connection attempt is in progress
-const connectedAccount = ref<Address | ''>('')  // The currently connected wallet address
-const walletClient = ref<WalletClient | null>(null)    // Viem wallet client for transactions
-const publicClient = ref<PublicClient | null>(null)    // Viem public client for reading blockchain data
-const chainId = ref<number | null>(null)        // Current blockchain network ID
-const balance = ref<string>('')         // Current ETH balance in human-readable format
-const error = ref<string>('')           // Current error message to display to user
-const hasWalletHistory = ref(false)     // Whether the user has previously connected a wallet
+// Available wallets configuration
+const availableWallets = computed(() => [
+  {
+    id: 'metamask',
+    name: 'MetaMask',
+    icon: 'pi pi-wallet',
+    status: 'Browser Extension'
+  },
+  {
+    id: 'walletconnect',
+    name: 'WalletConnect',
+    icon: 'pi pi-mobile',
+    status: 'Mobile & Desktop'
+  },
+  {
+    id: 'coinbase',
+    name: 'Coinbase Wallet',
+    icon: 'pi pi-credit-card',
+    status: 'Browser & Mobile'
+  }
+])
 
-/**
- * Maps chain IDs to their corresponding Viem chain configurations
- * Supports mainnet (1), Sepolia testnet (11155111), and local development (31337)
- * @param chainId - The numeric chain ID from the wallet
- * @returns The corresponding Viem chain configuration
- */
+// Check if multiple wallets are available
+const hasMultipleWallets = computed(() => {
+  return availableWallets.value.length > 1
+})
+
+// Chain configuration
 const getCurrentChain = (chainId: number) => {
   switch (chainId) {
     case 1: return mainnet
@@ -90,97 +162,41 @@ const getCurrentChain = (chainId: number) => {
   }
 }
 
-/**
- * Computed property that determines the text to display on the connect button
- * Changes based on whether MetaMask is installed or not
- * @returns String indicating either to install MetaMask or connect wallet
- */
-const buttonText = computed(() => {
-  if (!window.ethereum) {
-    return 'Install MetaMask'
-  }
-  return 'Connect Wallet'
-})
-
-const confirmAndDisconnect = async () => {
-  if (confirm('Are you sure you want to disconnect your wallet?')) {
-    await disconnect()
-  }
-}
-
-/**
- * Safely retrieves the Ethereum provider from the window object
- * Handles cases where multiple wallet providers are installed with enhanced error handling
- * Prioritizes MetaMask if available among multiple providers, with fallback strategies
- * @returns The Ethereum provider instance or null if not available
- */
+// Provider utilities
 const getEthereumProvider = (): EthereumProvider | null => {
   if (typeof window === 'undefined') return null
   
   const ethereum = (window as any).ethereum
   if (!ethereum) return null
 
-  // Handle multiple providers with enhanced detection
   if (ethereum.providers && Array.isArray(ethereum.providers) && ethereum.providers.length > 0) {
-    console.log('Multiple wallet providers detected:', ethereum.providers.length)
-    
-    // Try to find MetaMask first
     const metamaskProvider = ethereum.providers.find((provider: any) => {
       return provider.isMetaMask && !provider.isBraveWallet && !provider.isCoinbaseWallet
     })
     
-    if (metamaskProvider) {
-      console.log('Using MetaMask provider')
-      return metamaskProvider
-    }
-    
-    // Fallback to first available provider that looks stable
     if (metamaskProvider) return metamaskProvider
+    
     const stableProvider = ethereum.providers.find((provider: any) => {
       return provider.request && typeof provider.request === 'function'
     })
     
-    if (stableProvider) {
-      console.log('Using fallback provider:', stableProvider)
-      return stableProvider
-    }
-    
-    // Last resort: use the first provider
-    console.log('Using first available provider')
-    return ethereum.providers[0]
+    return stableProvider || ethereum.providers[0]
   }
   
-  // Single provider case - but verify it has required methods
   if (ethereum.request && typeof ethereum.request === 'function') {
-    console.log('Using single ethereum provider')
     return ethereum
   }
   
-  console.warn('No valid Ethereum provider found')
   return null
 }
 
-const tryRevokePermissions = async (provider: EthereumProvider | null) => {
-  if (!provider || !provider.request) return
-  try {
-    // Supporting wallet_revokePermissions, others no.
-    await provider.request({
-      method: 'wallet_revokePermissions',
-      params: [{ eth_accounts: {} }]
-    })
-  } catch (e) {
-    console.log('Revoke permissions not supported by provider', e)
+// Main wallet connection function
+async function connect(forceSelection = false) {
+  if (!forceSelection && (hasMultipleWallets.value || hasWalletHistory.value)) {
+    showWalletSelector.value = true
+    return
   }
-}
 
-/**
- * Main function to establish a connection with the user's wallet
- * Enhanced to handle multiple wallet providers with robust error handling
- * Updates all relevant state variables upon successful connection
- * @param forceSelection - If true, forces wallet selection dialog even if previously connected
- * @throws Will set error state if connection fails at any step
- */
-const connect = async (forceSelection = false) => {
   error.value = ''
   const provider = getEthereumProvider()
   
@@ -192,37 +208,26 @@ const connect = async (forceSelection = false) => {
   try {
     isConnecting.value = true
     
-    // Add a small delay to let wallet providers stabilize
     await new Promise(resolve => setTimeout(resolve, 100))
     
     let accounts: Address[]
     
     if (forceSelection) {
-      // Force wallet selection by requesting permissions again
       try {
-        // First try to revoke existing permissions (if supported)
-        if (provider.request) {
-          await provider.request({
-            method: 'wallet_revokePermissions',
-            params: [{ eth_accounts: {} }]
-          }).catch(() => {
-            // Ignore errors - not all wallets support this method
-            console.log('Wallet permission revocation not supported or failed')
-          })
-        }
+        await provider.request({
+          method: 'wallet_revokePermissions',
+          params: [{ eth_accounts: {} }]
+        }).catch(() => {})
       } catch {}
       
-      // Force new permission request
       accounts = await provider.request({
         method: 'eth_requestAccounts'
       }) as Address[]
     } else {
-      // Normal connection request with timeout
       const accountsPromise = provider.request({
         method: 'eth_requestAccounts'
       })
       
-      // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Connection timeout - please try again')), 30000)
       })
@@ -234,8 +239,7 @@ const connect = async (forceSelection = false) => {
       throw new Error('No accounts returned from wallet')
     }
 
-    // Get the current chain ID from the wallet with retry logic
-    let chainIdHex: string | undefined
+    let chainIdHex: string
     let retryCount = 0
     const maxRetries = 3
     
@@ -250,7 +254,6 @@ const connect = async (forceSelection = false) => {
         if (retryCount === maxRetries) {
           throw new Error('Failed to get chain ID after multiple attempts')
         }
-        console.warn(`Chain ID request failed, retrying... (${retryCount}/${maxRetries})`)
         await new Promise(resolve => setTimeout(resolve, 500))
       }
     }
@@ -258,7 +261,6 @@ const connect = async (forceSelection = false) => {
     const currentChainId = parseInt(chainIdHex!, 16)
     const currentChain = getCurrentChain(currentChainId)
     
-    // Create clients with error handling
     const pubClient = createPublicClient({
       chain: currentChain,
       transport: custom(provider)
@@ -268,78 +270,65 @@ const connect = async (forceSelection = false) => {
       transport: custom(provider)
     })
     
-    // Update component state with connection details
     walletClient.value = client
     publicClient.value = pubClient
     connectedAccount.value = accounts[0]
     chainId.value = currentChainId
     isConnected.value = true
     
-    // Fetch and display the user's ETH balance with error handling
     try {
       await updateBalance()
     } catch (balanceError) {
       console.warn('Failed to fetch balance, but connection successful:', balanceError)
-      // Don't fail the entire connection for balance errors
     }
     
-    console.log('Wallet connected successfully:', {
-      account: accounts[0],
-      chainId: currentChainId,
-      balance: balance.value
-    })
-
-    // Mark that user explicitly connected (used for auto-reconnect logic)
     localStorage.setItem('walletConnected', 'true')
     hasWalletHistory.value = true
 
+    // Update Pinia store
     walletStore.setWalletData({
       isConnected: isConnected.value,
       account: connectedAccount.value as string,
       chainId: chainId.value,
       balance: balance.value
     })
+
+    await AddOrCreateNewUser(connectedAccount.value)
     
   } catch (err: any) {
     console.error('Connection error:', err)
     
-    // Provide more specific error messages
     if (err.message.includes('User rejected')) {
       error.value = 'Connection cancelled by user'
     } else if (err.message.includes('timeout')) {
       error.value = 'Connection timeout - please try again'
-    } else if (err.message.includes('multiple wallets')) {
-      error.value = 'Multiple wallets detected - please disable other wallet extensions'
     } else {
       error.value = err.message || 'Failed to connect wallet'
     }
   } finally {
     isConnecting.value = false
   }
-  await AddOrCreateNewUser(connectedAccount.value);
 }
 
-/**
- * Forces the wallet selection dialog to appear
- * Useful when user wants to switch to a different wallet or account
- * This bypasses the automatic reconnection behavior
- */
-const forceWalletSelection = async () => {
-  console.log('Forcing wallet selection dialog')
-  await connect(true)
+async function connectWithWallet(wallet: any) {
+  try {
+    await connect(true) // Force connection
+    closeWalletSelector()
+  } catch (err) {
+    console.error('Failed to connect with wallet:', err)
+  }
 }
 
-/**
- * Safely disconnects the wallet after user confirmation
- * Clears all wallet-related state and logs the disconnection
- * Shows a confirmation dialog to prevent accidental disconnections
- */
-const disconnect = async () => {
-
+async function disconnect() {
   const provider = getEthereumProvider()
 
-  await tryRevokePermissions(provider)
-  // Clear all wallet-related state
+  try {
+    await provider?.request({
+      method: 'wallet_revokePermissions',
+      params: [{ eth_accounts: {} }]
+    }).catch(() => {})
+  } catch {}
+
   isConnected.value = false
   connectedAccount.value = ''
   walletClient.value = null
@@ -348,22 +337,30 @@ const disconnect = async () => {
   balance.value = ''
   error.value = ''
   
-  // Keep wallet history for showing "Select Wallet" button
-  // hasWalletHistory.value remains true
-  
-  // Remove auto-connexion flag.
   localStorage.removeItem('walletConnected')
-
-  walletStore.resetWallet();
-  console.log('Wallet disconnected')
+  walletStore.resetWallet()
 }
 
-/**
- * Fetches and updates the ETH balance for the connected account
- * Uses the public client to query the blockchain for the current balance
- * Converts the balance from Wei to Ether for human-readable display
- * @throws Logs error if balance retrieval fails but doesn't break the UI
- */
+async function confirmAndDisconnect() {
+  if (confirm('Are you sure you want to disconnect your wallet?')) {
+    await disconnect()
+  }
+}
+
+// Wallet selector methods
+function toggleWalletSelector() {
+  showWalletSelector.value = !showWalletSelector.value
+}
+
+function closeWalletSelector() {
+  showWalletSelector.value = false
+}
+
+async function forceWalletSelection() {
+  showWalletSelector.value = true
+}
+
+// Balance update
 const updateBalance = async () => {
   if (!publicClient.value || !connectedAccount.value) return
   
@@ -377,15 +374,8 @@ const updateBalance = async () => {
   }
 }
 
-/**
- * Handles wallet account changes triggered by the user switching accounts in MetaMask
- * Automatically disconnects if no accounts are available, or updates to the new account
- * Updates the balance display when switching to a different account
- * @param accounts - Array of account addresses from the wallet provider
- */
+// Event handlers
 const handleAccountsChanged = (accounts: string[]) => {
-  console.log('Accounts changed:', accounts)
-  
   if (accounts.length === 0) {
     disconnect()
   } else if (accounts[0] !== connectedAccount.value) {
@@ -394,20 +384,11 @@ const handleAccountsChanged = (accounts: string[]) => {
   }
 }
 
-/**
- * Handles blockchain network changes triggered by the user switching networks in MetaMask
- * Recreates the Viem clients with the new chain configuration using enhanced provider detection
- * Updates the balance display for the new network
- * @param chainIdHex - Hexadecimal string representation of the new chain ID
- */
 const handleChainChanged = (chainIdHex: string) => {
   const newChainId = parseInt(chainIdHex, 16)
-  console.log('Chain changed:', newChainId)
-  
   chainId.value = newChainId
   
   if (walletClient.value && connectedAccount.value) {
-    // Recreate clients with new chain using enhanced provider detection
     const provider = getEthereumProvider()
     if (provider) {
       try {
@@ -434,65 +415,38 @@ const handleChainChanged = (chainIdHex: string) => {
   }
 }
 
-/**
- * Sets up event listeners for wallet provider events
- * Listens for account changes, network changes, and disconnection events
- * Must be called during component initialization to ensure proper wallet state synchronization
- */
+// Event listener setup
 const setupEventListeners = () => {
   const provider = getEthereumProvider()
   if (!provider) return
   
   provider.on('accountsChanged', handleAccountsChanged)
   provider.on('chainChanged', handleChainChanged)
-  
-  // Handle wallet disconnection initiated from the wallet itself
   provider.on('disconnect', () => {
-    console.log('Provider disconnected')
     disconnect()
   })
 }
 
-/**
- * Removes all wallet provider event listeners to prevent memory leaks
- * Should be called during component cleanup or before setting up new listeners
- */
-const cleanupEventListeners = () => {
-  const provider = getEthereumProvider()
-  if (!provider) return
-  
-  provider.removeListener('accountsChanged', handleAccountsChanged)
-  provider.removeListener('chainChanged', handleChainChanged)
-}
-
-/**
- * Checks if the wallet was previously connected and auto-reconnects if so
- * This provides a seamless user experience by maintaining wallet connection across page reloads
- * Uses eth_accounts method which returns accounts only if previously authorized
- */
+// Auto-connect check
 const checkConnection = async () => {
   const provider = getEthereumProvider()
   if (!provider) return
 
   const walletConnected = localStorage.getItem('walletConnected')
   if (walletConnected === 'true') {
-    // L'utilisateur s'est déjà explicitement connecté -> autoriser auto-reconnect
     hasWalletHistory.value = true
     try {
       const accounts = await provider.request({ method: 'eth_accounts' }) as Address[]
       if (accounts && accounts.length > 0) {
-        // auto connect uniquement si le flag est présent
         connectedAccount.value = accounts[0]
-        await connect()
+        await connect(true)
       } else {
-        // provider n'autorise plus -> cleanup du flag
         localStorage.removeItem('walletConnected')
       }
     } catch (err) {
       console.error('Failed to check existing connection:', err)
     }
   } else {
-    // pas de flag -> ne pas auto-connect, mais si provider renvoie des accounts on peut afficher le bouton "Select Wallet"
     try {
       const accounts = await provider.request({ method: 'eth_accounts' }) as Address[]
       if (accounts && accounts.length > 0) {
@@ -504,31 +458,37 @@ const checkConnection = async () => {
   }
 }
 
-/**
- * Utility function to create a user-friendly shortened version of an Ethereum address
- * Displays the first 6 and last 4 characters with ellipsis in between
- * @param address - The full Ethereum address to shorten
- * @returns Shortened address in format "0x1234...abcd" or empty string if no address
- */
-const shortenAddress = (address: string) => {
+// Utility methods
+function shortenAddress(address: string): string {
   if (!address) return ''
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
-// Lifecycle hooks
+function getChainName(chainId?: number): string {
+  const chainNames: Record<number, string> = {
+    1: 'Ethereum',
+    137: 'Polygon',
+    42161: 'Arbitrum',
+    10: 'Optimism',
+    1337: 'Local'
+  }
+  return chainNames[chainId || 1] || 'Unknown'
+}
+
+// Lifecycle
 onMounted(async () => {
   setupEventListeners()
   await checkConnection()
-});
+})
 
-// Watch for connection changes to update balance
+// Watchers
 watch(isConnected, (connected) => {
   if (connected) {
     updateBalance()
   }
 })
 
-// Expose reactive state for parent components
+// Expose for parent components
 defineExpose({
   isConnected,
   connectedAccount,
@@ -540,6 +500,347 @@ defineExpose({
 })
 </script>
 
-<style>
-      @import "./button.css";
+<style scoped>
+@import "./button.css";
+
+.walletSection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Connected State */
+.walletInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 140, 0, 0.1);
+  border: 1px solid rgba(255, 140, 0, 0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.walletIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.connectedDot {
+  width: 8px;
+  height: 8px;
+  background: #00ff88;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.addressDisplay {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.chainBadge {
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 140, 0, 0.2);
+  border: 1px solid rgba(255, 140, 0, 0.4);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #ff8c00;
+  font-weight: 500;
+}
+
+.disconnectButton {
+  padding: 0.5rem;
+  background: rgba(255, 69, 69, 0.1);
+  border: 1px solid rgba(255, 69, 69, 0.3);
+  border-radius: 8px;
+  color: #ff4545;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disconnectButton:hover {
+  background: rgba(255, 69, 69, 0.2);
+  border-color: rgba(255, 69, 69, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Disconnected State */
+.connectSection {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.connectButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3);
+}
+
+.connectButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 140, 0, 0.4);
+  background: linear-gradient(135deg, #ff9500 0%, #ff7043 100%);
+}
+
+.connectButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.selectWalletButton {
+  padding: 0.75rem;
+  background: rgba(255, 140, 0, 0.1);
+  border: 1px solid rgba(255, 140, 0, 0.3);
+  border-radius: 10px;
+  color: #ff8c00;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selectWalletButton:hover {
+  background: rgba(255, 140, 0, 0.2);
+  border-color: rgba(255, 140, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.selectWalletButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Wallet Selector Popup */
+.walletSelectorOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.walletSelectorModal {
+  background: linear-gradient(145deg, 
+    rgba(30, 30, 30, 0.95) 0%, 
+    rgba(45, 45, 45, 0.95) 100%
+  );
+  border: 1px solid rgba(255, 140, 0, 0.3);
+  border-radius: 20px;
+  padding: 2rem;
+  min-width: 400px;
+  max-width: 500px;
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    0 0 50px rgba(255, 140, 0, 0.1);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 140, 0, 0.2);
+}
+
+.modalHeader h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.closeButton {
+  padding: 0.5rem;
+  background: rgba(255, 140, 0, 0.1);
+  border: 1px solid rgba(255, 140, 0, 0.3);
+  border-radius: 8px;
+  color: #ff8c00;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background: rgba(255, 140, 0, 0.2);
+  border-color: rgba(255, 140, 0, 0.5);
+  transform: scale(1.05);
+}
+
+/* Wallet Options */
+.walletOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.walletOption {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 140, 0, 0.05);
+  border: 1px solid rgba(255, 140, 0, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.walletOption:hover {
+  background: rgba(255, 140, 0, 0.1);
+  border-color: rgba(255, 140, 0, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 140, 0, 0.2);
+}
+
+.walletOption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.walletIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 140, 0, 0.1);
+  border: 1px solid rgba(255, 140, 0, 0.3);
+  border-radius: 10px;
+  margin-right: 1rem;
+  color: #ff8c00;
+  font-size: 1.25rem;
+}
+
+.walletDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.walletName {
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.walletStatus {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+}
+
+.walletAction {
+  color: #ff8c00;
+  font-size: 0.875rem;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.walletOption:hover .walletAction {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* Error Messages */
+.errorMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 69, 69, 0.1);
+  border: 1px solid rgba(255, 69, 69, 0.3);
+  border-radius: 8px;
+  color: #ff4545;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .walletSelectorModal {
+    margin: 1rem;
+    min-width: unset;
+    max-width: unset;
+    width: calc(100% - 2rem);
+  }
+  
+  .connectSection {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  .connectButton, .selectWalletButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

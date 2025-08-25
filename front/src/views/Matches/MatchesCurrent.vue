@@ -1,40 +1,42 @@
 <template>
     <div class="matches-container">
+    <!-- Floating Background Icons -->
+
     <div class="matches-header">
       <h1 class="page-title">
         <i class="pi pi-play-circle"></i>
-        Matches en Cours
+        Live Matches
       </h1>
       <button @click="refreshMatches" class="refresh-button" :disabled="MatchesStore.loading">
         <i class="pi pi-refresh" :class="{ 'pi-spin': MatchesStore.loading }"></i>
-        {{ MatchesStore.loading ? 'Chargement...' : 'Actualiser' }}
+        {{ MatchesStore.loading ? 'Loading...' : 'Refresh' }}
       </button>
     </div>
 
     <div v-if="MatchesStore.loading && MatchesStore.matches.length === 0" class="loading-container">
       <div class="loading-spinner"></div>
-      <p class="loading-text">Récupération des matches en cours...</p>
+      <p class="loading-text">Fetching live matches...</p>
     </div>
 
     <!-- Error state -->
     <div v-else-if="MatchesStore.error" class="error-container">
       <i class="pi pi-exclamation-triangle"></i>
-      <h3>Erreur lors du chargement</h3>
+      <h3>Loading error</h3>
       <p>{{ MatchesStore.error }}</p>
       <button @click="refreshMatches" class="retry-button">
         <i class="pi pi-refresh"></i>
-        Réessayer
+        Retry
       </button>
     </div>
 
     <!-- Empty state -->
     <div v-else-if="MatchesStore.matches.length === 0 && !MatchesStore.loading" class="empty-container">
       <i class="pi pi-calendar-times"></i>
-      <h3>Aucun match en cours</h3>
-      <p>Il n'y a actuellement aucun match en direct. Revenez plus tard !</p>
+      <h3>No live matches</h3>
+      <p>There are currently no live matches. Come back later!</p>
       <button @click="refreshMatches" class="refresh-button">
         <i class="pi pi-refresh"></i>
-        Actualiser
+        Refresh
       </button>
     </div>
 
