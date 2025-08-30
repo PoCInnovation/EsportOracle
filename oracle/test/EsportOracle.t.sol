@@ -556,4 +556,168 @@ contract EsportOracleTest is Test {
         vm.prank(user4);
         oracle.addFundToStaking{value: 0.001 ether}();
     }
+
+    function testQuorumWithTwoNodes() public {
+        console.log("Test de quorum avec seulement 2 noeuds");
+        
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        vm.prank(user2);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        EsportOracleTypes.Match[] memory matches = prepareSampleMatch();
+        
+        vm.prank(user1);
+        oracle.handleNewMatches(matches);
+        
+        vm.prank(user2);
+        oracle.handleNewMatches(matches);
+        
+        EsportOracleTypes.Match memory dataNode = oracle.getMatchById(1);
+        assertEq(dataNode._id, 1, "Le match doit etre enregistre avec 2 noeuds");
+        assertEq(oracle.getPendingMatches().length, 0, "Il ne doit pas y avoir de matchs en attente");
+    }
+
+    function testQuorumWithThreeNodes() public {
+        console.log("Test de quorum avec 3 noeuds (2 sur 3 suffisent)");
+        
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        vm.prank(user2);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        vm.prank(user3);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        EsportOracleTypes.Match[] memory matches = prepareSampleMatch();
+        
+        vm.prank(user1);
+        oracle.handleNewMatches(matches);
+        
+        vm.prank(user2);
+        oracle.handleNewMatches(matches);
+        
+        EsportOracleTypes.Match memory dataNode = oracle.getMatchById(1);
+        assertEq(dataNode._id, 1, "Le match doit etre enregistre avec 2 sur 3 noeuds");
+        assertEq(oracle.getPendingMatches().length, 0, "Il ne doit pas y avoir de matchs en attente");
+    }
+
+    function testNodeCannotSubmitWhenBanned() public {
+        console.log("Test qu'un noeud banni ne peut pas soumettre de donnees");
+        
+        addFourTestNodes();
+        
+        oracle.banNode(user1);
+        
+        EsportOracleTypes.Match[] memory matches = prepareSampleMatch();
+        
+        vm.prank(user1);
+        vm.expectRevert("Node is banned");
+        oracle.handleNewMatches(matches);
+    }
+
+    function testNodeCannotStakeWhenBanned() public {
+        console.log("Test qu'un noeud banni ne peut pas faire de staking");
+        
+        addFourTestNodes();
+        
+        oracle.banNode(user1);
+        
+        vm.prank(user1);
+        vm.expectRevert("Node is banned");
+        oracle.addFundToStaking{value: 0.001 ether}();
+    }
+
+    function testRehabilitatedNodeCanStakeAgain() public {
+        console.log("Test qu'un noeud rehabilite peut refaire du staking");
+        
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        oracle.banNode(user1);
+        
+        oracle.rehabilitateNode(user1);
+        
+        vm.prank(user1);
+        oracle.addFundToStaking{value: 0.001 ether}();
+        
+        address[] memory nodes = oracle.getListedNodes();
+        assertEq(nodes.length, 1, "Le noeud rehabilite doit etre dans la liste");
+    }
+
+    function testWithdrawStakeWhenNotListed() public {
+        console.log("Test de retrait quand le noeud n'est pas dans la liste");
+        
+        vm.expectRevert("No funds to withdraw");
+        oracle.withdrawStake();
+    }
+
+    function testBanNodeWithZeroStake() public {
+        console.log("Test de bannissement d'un noeud sans stake");
+        
+        vm.expectRevert();
+        oracle.banNode(user1);
+    }
+
+    function testSetOwnerToZeroAddress() public {
+        console.log("Test de definition du proprietaire a l'adresse zero");
+        
+        vm.expectRevert("New owner cannot be zero address");
+        oracle.setOwner(address(0));
+    }
+
+    function testPunishNodeWithInsufficientFunds() public {
+        console.log("Test de punition d'un noeud avec fonds insuffisants");
+        
+        addFourTestNodes();
+        
+        EsportOracleTypes.Opponents[] memory opponents = new EsportOracleTypes.Opponents[](2);
+        opponents[0] = EsportOracleTypes.Opponents({_acronym: "TA", _id: 1, _name: "Team A"});
+        opponents[1] = EsportOracleTypes.Opponents({_acronym: "TB", _id: 2, _name: "Team B"});
+        
+        EsportOracleTypes.Games[] memory games = new EsportOracleTypes.Games[](1);
+        games[0] = EsportOracleTypes.Games({_id: 1, _finished: true, _winnerId: 1});
+        
+        EsportOracleTypes.Result[] memory results = new EsportOracleTypes.Result[](2);
+        results[0] = EsportOracleTypes.Result({_score: 3, _teamId: 1});
+        results[1] = EsportOracleTypes.Result({_score: 1, _teamId: 2});
+        
+        EsportOracleTypes.Match[] memory correctMatch = new EsportOracleTypes.Match[](1);
+        correctMatch[0] = EsportOracleTypes.Match({
+            _id: 1, _opponents: opponents, _game: games, _result: results, _winnerId: 1, _beginAt: 1
+        });
+        
+        EsportOracleTypes.Match[] memory incorrectMatch = new EsportOracleTypes.Match[](1);
+        incorrectMatch[0] = EsportOracleTypes.Match({
+            _id: 1, _opponents: opponents, _game: games, _result: results, _winnerId: 2, _beginAt: 1
+        });
+        
+        vm.prank(user1);
+        oracle.handleNewMatches(correctMatch);
+        vm.prank(user2);
+        oracle.handleNewMatches(correctMatch);
+        vm.prank(user3);
+        oracle.handleNewMatches(correctMatch);
+        
+        vm.prank(user4);
+        oracle.handleNewMatches(incorrectMatch);
+        
+        (uint256 violations, bool banned) = oracle._nodeViolations(user4);
+        assertEq(violations, 0, "Le noeud ne doit pas avoir de violation dans ce scenario");
+    }
+
+    function testEmptyMatchArray() public {
+        console.log("Test de soumission d'un tableau de matchs vide");
+        
+        addFourTestNodes();
+        
+        EsportOracleTypes.Match[] memory emptyMatches = new EsportOracleTypes.Match[](0);
+        
+        vm.prank(user1);
+        vm.expectRevert("No match data provided");
+        oracle.handleNewMatches(emptyMatches);
+    }
+
 }

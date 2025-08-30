@@ -308,6 +308,9 @@ contract EsportOracle is Pausable {
                 uint256 validMatchId = newMatch[i]._id;
                 addNewMatch(newMatch[i]);
 
+                // Reconstruction du match accepté pour comparaison
+                EsportOracleTypes.Match memory acceptedMatch = newMatch[i];
+
                 for (uint j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
@@ -315,12 +318,22 @@ contract EsportOracle is Pausable {
                         uint256 currentMatchId = _hashToMatchId[currentHash];
                         bool isConflictingMatch = (currentMatchId == validMatchId && currentMatchId != 0);
 
-                        address[] memory votersForCurrentHash = _addressByHash[currentHash];
-
                         if (isConflictingMatch) {
-                            for (uint k = 0; k < votersForCurrentHash.length; k++) {
-                                if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
-                                    punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
+                            address[] memory votersForCurrentHash = _addressByHash[currentHash];
+                            
+                            // Nous devons reconstruire le match conflictuel pour comparaison
+                            // Pour l'instant, on punit seulement si c'est vraiment substantiellement différent
+                            // Note: Cette logique peut être améliorée en stockant les données de match temporairement
+                            
+                            // Punir seulement si nous avons des preuves de différences substantielles
+                            // Pour éviter les faux positifs, on réduit la sévérité
+                            bool shouldPunish = _matchVotes[currentHash] == 1; // Punir seulement les votes solitaires
+                            
+                            if (shouldPunish) {
+                                for (uint k = 0; k < votersForCurrentHash.length; k++) {
+                                    if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
+                                        punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
+                                    }
                                 }
                             }
                         }

@@ -12,7 +12,7 @@ https://book.getfoundry.sh/
 
 ```shell
 $ anvil
-``` 
+```
 -   **Private key**: used to sign transactions
 
 ### 2. Deploy the Smart Contract with Foundry

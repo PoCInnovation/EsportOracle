@@ -140,7 +140,8 @@ contract EsportOracleRequester is EsportOracle {
         EsportOracleTypes.MatchRequest memory match_request = getRequestByMatchId(matchId);
         require(match_request.requester != address(0), "Invalid address requester");
         require(_matchMapping[matchId]._id != 0, "Match not validated by quorum yet");
-        EsportOracleClientRequester(match_request.requester).callMatchReceived(matchData);
         markRequestsFulfilled(matchId);
+        EsportOracleClientRequester(match_request.requester).callMatchReceived(matchData);
+
     }
 }

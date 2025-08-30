@@ -19,6 +19,8 @@ abstract contract EsportOracleClientRequester {
         require(msg.sender == address(oracle), "Only the oracle contract can call this function");
         _;
     }
+
+
     /**
      * @notice Allow a user to request a match by providing the match ID
      * @param matchId Id of the match
@@ -34,7 +36,7 @@ abstract contract EsportOracleClientRequester {
      * @notice Show the details of a match request by its ID
      * @param matchId Id of the request
      * @return MatchRequest struct containing the details of the request
-     */
+    */
     function showMatch(uint256 matchId) external view returns(EsportOracleTypes.Match memory) {
         return (oracle.getMatchById(matchId));
     }
@@ -49,3 +51,4 @@ abstract contract EsportOracleClientRequester {
 
     function callMatchReceived(EsportOracleTypes.Match memory _match) external virtual onlyOracle {}
 }
+
