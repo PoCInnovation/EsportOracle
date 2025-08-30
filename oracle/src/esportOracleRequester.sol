@@ -142,5 +142,6 @@ contract EsportOracleRequester is EsportOracle {
         require(_matchMapping[matchId]._id != 0, "Match not validated by quorum yet");
         markRequestsFulfilled(matchId);
         EsportOracleClientRequester(match_request.requester).callMatchReceived(matchData);
+
     }
 }

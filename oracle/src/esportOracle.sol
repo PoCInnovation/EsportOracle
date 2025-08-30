@@ -484,4 +484,8 @@ contract EsportOracle is Pausable {
             return nbVote > (listedNodes.length / 2);
         }
     }
+    function checkQorum(EsportOracleTypes.Match memory matchData) public view returns (bool) {
+        bytes32 matchHash = keccak256(abi.encode(matchData));
+        return quorumIsReached(_matchVotes[matchHash]);
+    }
 }

@@ -20,6 +20,7 @@ abstract contract EsportOracleClientRequester {
         _;
     }
 
+
     /**
      * @notice Allow a user to request a match by providing the match ID
      * @param matchId Id of the match
@@ -50,3 +51,4 @@ abstract contract EsportOracleClientRequester {
 
     function callMatchReceived(EsportOracleTypes.Match memory _match) external virtual onlyOracle {}
 }
+
