@@ -13,7 +13,7 @@
     <div class="teams-section">
       <div class="team" v-if="match.opponents && match.opponents[0]">
         <div class="team-logo-container">
-          <img 
+          <img
             v-if="getTeamImageUrl(match.opponents[0])"
             :src="getTeamImageUrl(match.opponents[0])" 
             :alt="match.opponents[0].opponent.name"
@@ -54,6 +54,14 @@
       </div>
     </div>
 
+    <div class="match-bet" v-if="match.status === 'running' && match && match.opponents ">
+        <button @click="PushMatchBets(match.id)" class="match-buttonBet">{{ match.opponents[0].opponent.name }}</button>
+        <button @click="PushMatchBets(match.id)" class="match-buttonBet">{{ match.opponents[1].opponent.name }}</button>
+    </div>
+    <div v-else-if="match.status === 'not_started'">
+      <button class="match-buttonBet-upcoming">Ouverture le {{ formatDate(match.begin_at || match.scheduled_at) }}</button>
+    </div>
+
     <div class="tournament-section" v-if="match.league || match.tournament">
       <div class="tournament-info">
         <span class="tournament-icon">🏆</span>
@@ -66,6 +74,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { matchStore } from '@/stores/matchStore'
+
+const router = useRouter()
+const matchesStore = matchStore()
 
 interface Match {
   id: number
@@ -82,6 +95,10 @@ interface Match {
   }>
   league?: { name: string }
   tournament?: { name: string }
+}
+
+const PushMatchBets = (matchId: number) => {
+  return router.push(`/bets/current/${matchId}`)
 }
 
 const props = defineProps<{ match: Match }>()
@@ -137,6 +154,84 @@ const handleImageLoad = (event: Event) => {
 </script>
 
 <style scoped>
+
+@import "../../src/components/team.css";
+
+.match-bet {
+  margin-left: calc(48px + 12px);
+  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 10rem;
+}
+
+.match-buttonBet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: rgba(249, 115, 22, 0.3);
+  border: none;
+  outline: none;
+  cursor: pointer;
+
+  min-width: 100px;
+  max-width: 160px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.match-buttonBet:focus {
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 0 3px #f97316;
+}
+
+.match-buttonBet:hover {
+  background:  #f97316;
+   transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(15px);
+}
+
+.match-buttonBet-upcoming {
+  display: flex;
+  margin-bottom: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  background: rgba(107, 114, 128, 0.25);
+  border: none;
+  outline: none;
+  cursor: pointer;
+  color: white;
+  width: 100%;
+}
+
+.match-buttonBet-upcoming:hover {
+  background: rgba(107, 114, 128, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
 .match-card {
   background: rgba(26, 26, 26, 0.95);
   border: 1px solid rgba(249, 115, 22, 0.3);
@@ -150,6 +245,8 @@ const handleImageLoad = (event: Event) => {
     0 8px 32px rgba(0, 0, 0, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  padding-bottom: 3rem;
 }
 
 .match-card::before {
@@ -288,118 +385,6 @@ const handleImageLoad = (event: Event) => {
   z-index: 2;
 }
 
-.teams-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  position: relative;
-  z-index: 2;
-}
-
-.team {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1;
-  min-width: 0;
-  transition: all 0.3s ease;
-}
-
-.team:hover {
-  transform: scale(1.02);
-}
-
-.team-logo-container {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 1rem;
-  background: rgba(45, 45, 45, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(249, 115, 22, 0.3);
-  overflow: hidden;
-  flex-shrink: 0;
-  backdrop-filter: blur(15px);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  position: relative;
-}
-
-.team-logo-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.team-logo-container:hover {
-  border-color: #f97316;
-  transform: scale(1.1) rotate(2deg);
-  box-shadow: 
-    0 8px 25px rgba(249, 115, 22, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.team-logo-container:hover::before {
-  opacity: 1;
-}
-
-.team-logo {
-  width: 80%;
-  height: 80%;
-  object-fit: cover;
-  opacity: 0;
-  transition: all 0.4s ease;
-  filter: brightness(1.1) contrast(1.05);
-  border-radius: 0.5rem;
-}
-
-.team-fallback {
-  font-size: 1rem;
-  font-weight: 800;
-  color: #ffffff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.team-info { 
-  flex: 1; 
-  min-width: 0; 
-  transition: all 0.3s ease;
-}
-
-.team-name {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0 0 0.25rem 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-}
-
-.team:hover .team-name {
-  color: #fb923c;
-  transform: translateX(2px);
-}
-
-.team-tag {
-  font-size: 0.8rem;
-  color: #a3a3a3;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
 .vs-divider {
   margin: 0 1.5rem;

@@ -8,6 +8,65 @@
   overflow: hidden;
 }
 
+/* Color "Select Teams" Multi-select*/
+
+.custom-multiselect .p-multiselect-label.p-placeholder {
+  color: #ffffff;
+}
+
+.custom-multiselect.p-multiselect .p-multiselect-label {
+  background-color: transparent !important;
+  color: #fff;
+  font-weight: 500;
+}
+/* Multi-Select Teams*/
+.custom-multiselect.p-multiselect {
+  border: 2px solid rgba(249, 115, 22, 0.4);
+  border-radius: 6px;
+  background-color: rgba(249, 115, 22, 0.02);
+  color: rgba(249, 115, 22, 0.4);
+}
+
+
+/* Label displayed in field */
+.custom-multiselect .p-multiselect-label {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Dropdown icons */
+.custom-multiselect .p-multiselect-trigger {
+  color: #4a90e2;
+}
+
+/* Drop-down items */
+.p-multiselect-panel {
+  background-color: rgba(249, 115, 22, 0.4);
+  border: 1px solid #4a90e2;
+}
+
+/* List items */
+.p-multiselect-item {
+  padding: 8px 12px;
+  color: #333;
+}
+
+/* hover Item */
+.p-multiselect-item:hover {
+  background-color: rgba(249, 115, 22, 0.4);
+}
+
+/* select Item */
+.p-multiselect-item.p-highlight {
+  background-color: #4a90e2;
+  color: rgba(249, 115, 22, 0.4);
+}
+
+/* Field focus */
+.custom-multiselect.p-focus {
+  box-shadow: 0 0 0 2px #4a90e250;
+}
+
 /* Floating Background Elements */
 .matches-container::before {
   content: '';

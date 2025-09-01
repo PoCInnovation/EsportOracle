@@ -139,6 +139,16 @@
   animation: slideIn 0.3s ease-out;
 }
 
+.form-blue-background {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -147,5 +157,242 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* AJOUTEZ CE CODE À LA FIN DE VOTRE button.css */
+
+.form-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.form-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.form-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.form-button:disabled {
+  background: linear-gradient(135deg, #a0a0a0 0%, #808080 100%);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Styles pour le formulaire de filtrage */
+.team-filter-form {
+  margin-top: 1rem;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: nowrap;
+}
+
+.team-multiselect {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Styles pour le MultiSelect PrimeVue */
+.team-multiselect .p-multiselect {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.team-multiselect .p-multiselect:hover:not(.p-disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.team-multiselect .p-multiselect:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.team-multiselect .p-multiselect .p-multiselect-label {
+  color: #ffffff;
+  padding: 0.75rem 1rem;
+}
+
+.team-multiselect .p-multiselect .p-multiselect-label.p-placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.team-multiselect .p-multiselect .p-multiselect-trigger {
+  color: #ffffff;
+  width: 2.5rem;
+}
+
+.team-multiselect .p-multiselect-panel {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+  border: 2px solid #667eea !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.team-multiselect .p-multiselect-header {
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%) !important;
+  border-bottom: 1px solid #667eea !important;
+  padding: 0.75rem !important;
+  border-radius: 6px 6px 0 0 !important;
+}
+
+.team-multiselect .p-multiselect-filter {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(102, 126, 234, 0.5) !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  padding: 0.5rem !important;
+  transition: all 0.3s ease !important;
+}
+
+.team-multiselect .p-multiselect-filter:focus {
+  outline: none !important;
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.team-multiselect .p-multiselect-filter::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.team-multiselect .p-multiselect-filter-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.team-multiselect .p-multiselect-items {
+  background: transparent !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
+
+.team-multiselect .p-multiselect-item {
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 0.75rem 1rem !important;
+  border: none !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+}
+
+.team-multiselect .p-multiselect-item:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  transform: translateX(4px) !important;
+}
+
+.team-multiselect .p-multiselect-item.p-highlight {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%) !important;
+  color: #ffffff !important;
+}
+
+.team-multiselect .p-multiselect-item.p-highlight:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+}
+
+/* Checkbox dans les items */
+.team-multiselect .p-multiselect-item .p-checkbox {
+  margin-right: 0.5rem !important;
+}
+
+.team-multiselect .p-multiselect-item .p-checkbox .p-checkbox-box {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 4px !important;
+  transition: all 0.3s ease !important;
+}
+
+.team-multiselect .p-multiselect-item .p-checkbox .p-checkbox-box.p-highlight {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border-color: #667eea !important;
+}
+
+.team-multiselect .p-multiselect-item .p-checkbox .p-checkbox-box .p-checkbox-icon {
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+.team-multiselect .p-multiselect-items::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.team-multiselect .p-multiselect-items::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 3px !important;
+}
+
+.team-multiselect .p-multiselect-items::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border-radius: 3px !important;
+}
+
+.team-multiselect .p-multiselect-items::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
+}
+
+/* Message "No results found" */
+.team-multiselect .p-multiselect-empty-message {
+  color: rgba(255, 255, 255, 0.7) !important;
+  padding: 1rem !important;
+  text-align: center !important;
+  font-style: italic !important;
+}
+
+.team-multiselect .p-multiselect-panel {
+  animation: dropdownFadeIn 0.3s ease-out !important;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .form-row {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  
+  .team-multiselect {
+    min-width: unset;
+  }
+  
+  .form-button {
+    width: 100%;
   }
 }

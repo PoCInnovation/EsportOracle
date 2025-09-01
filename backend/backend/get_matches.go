@@ -78,12 +78,12 @@ func GetMatchByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetCurrentMatches(w http.ResponseWriter, r *http.Request) {
-	matchID := mux.Vars(r)["teamID"]
+	teamIDs := r.URL.Query().Get("teamId")
 
 	var url string;
 
-	if (matchID != "") {
-		url = fmt.Sprintf("%s/teams/%s/matches/running", BaseURL, matchID)
+	if (teamIDs != "") {
+		url = fmt.Sprintf("%s/matches/running?filter[opponent_id]=%s", BaseURL, teamIDs)
 	} else {
 		url = fmt.Sprintf("%s/matches/running", BaseURL)
 	}
@@ -102,12 +102,12 @@ func GetCurrentMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetPastMatches(w http.ResponseWriter, r *http.Request) {
-	matchID := mux.Vars(r)["teamID"]
+	teamIDs := r.URL.Query().Get("teamId")
 
 	var url string;
 
-	if (matchID != "") {
-		url = fmt.Sprintf("%s/teams/%s/matches?filter[status]=finished&sort=-begin_at&per_page=50&page=1", BaseURL, matchID) //verifier les endpoints.
+	if (teamIDs != "") {
+		url = fmt.Sprintf("%s/matches/?filter[status]=finished&filter[opponent_id]=%s&sort=-begin_at&per_page=50&page=1", BaseURL, teamIDs)
 	} else {
 		url = fmt.Sprintf("%s/matches?filter[status]=finished&sort=-begin_at&per_page=50&page=1", BaseURL)
 	}
@@ -126,12 +126,12 @@ func GetPastMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUpcomingMatches(w http.ResponseWriter, r *http.Request) {
-	matchID := mux.Vars(r)["teamID"]
+	teamIDs := r.URL.Query().Get("teamId")
 
 	var url string;
 
-	if (matchID != "") {
-		url = fmt.Sprintf("%s/teams/%s/matches?filter[status]=not_started&sort=begin_at&per_page=50&page=1", BaseURL, matchID)
+	if (teamIDs != "") {
+		url = fmt.Sprintf("%s/matches/?filter[status]=not_started&filter[opponent_id]=%s&sort=begin_at&per_page=50&page=1", BaseURL, teamIDs)
 	} else {
 		url = fmt.Sprintf("%s/matches?filter[status]=not_started&sort=begin_at&per_page=50&page=1", BaseURL)
 	}
@@ -153,12 +153,9 @@ func GetUpcomingMatches(w http.ResponseWriter, r *http.Request) {
 func SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/MatchByID/{matchID}", GetMatchByID).Methods("GET")
-	router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
+	//router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
 	router.HandleFunc("/matches/current", GetCurrentMatches).Methods("GET")
-	router.HandleFunc("/matches/current/{teamID}", GetCurrentMatches).Methods("GET")
 	router.HandleFunc("/matches/past", GetPastMatches).Methods("GET")
-	router.HandleFunc("/matches/past/{teamID}", GetPastMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming", GetUpcomingMatches).Methods("GET")
-	router.HandleFunc("/matches/upcoming/{teamID}", GetUpcomingMatches).Methods("GET")
 	return router
 }

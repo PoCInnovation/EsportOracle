@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { createWalletClient, createPublicClient, custom, formatEther } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
+import { useWalletStore } from './stores/useWalletStore'
+
+const walletStore = useWalletStore()
 
 // Types TypeScript
 interface Wallet {
