@@ -16,10 +16,22 @@ func init() {
 		panic("Error loading .env file")
 	}
 	PandaScoreAPIToken = os.Getenv("PANDASCORE_API_TOKEN")
+	
+	// Also load blockchain-related env vars for bet contract
+	ethereumRPCURL = os.Getenv("ETHEREUM_RPC_URL")
+	betContractAddress = os.Getenv("BET_CONTRACT_ADDRESS")
+	
+	// Debug output
+	fmt.Printf("Loaded ETHEREUM_RPC_URL: %s\n", ethereumRPCURL)
+	fmt.Printf("Loaded BET_CONTRACT_ADDRESS: %s\n", betContractAddress)
 }
 
 var BaseURL = "https://api.pandascore.co"
 var PandaScoreAPIToken string
+
+// Blockchain configuration variables (shared with bet_contract.go)
+var ethereumRPCURL string
+var betContractAddress string
 
 func SendResponseClient(w http.ResponseWriter, req *http.Request) {
 	res, err := http.DefaultClient.Do(req)
@@ -160,5 +172,7 @@ func SetupRoutes() *mux.Router {
 	router.HandleFunc("/matches/past/{teamID}", GetPastMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming", GetUpcomingMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming/{teamID}", GetUpcomingMatches).Methods("GET")
+	router.HandleFunc("/bets/history", GetAllBetsSimple).Methods("GET")
+	router.HandleFunc("/bets/history/{userAddress}", GetUserBetHistorySimple).Methods("GET")
 	return router
 }
