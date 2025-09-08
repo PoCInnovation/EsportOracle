@@ -97,7 +97,6 @@ const props = defineProps<{ match: Match }>()
 const failedImages = ref<Set<string>>(new Set())
 const showDetailsPopup = ref(false)
 
-// Emit events for parent components
 const emit = defineEmits<{
   openBetting: [match: Match]
 }>()
@@ -152,13 +151,11 @@ const handleImageLoad = (event: Event) => {
 
 const openDetailsPopup = () => {
   showDetailsPopup.value = true
-  // Mettre à jour l'URL avec le hash du match
   window.history.replaceState(null, '', `#match-${props.match.id}`)
 }
 
 const closeDetailsPopup = () => {
   showDetailsPopup.value = false
-  // Supprimer le hash de l'URL
   window.history.replaceState(null, '', window.location.pathname + window.location.search)
 }
 
@@ -167,12 +164,10 @@ const openBettingFromDetails = () => {
   emit('openBetting', props.match)
 }
 
-// Fonction exposée pour ouvrir la popup depuis l'extérieur
 const openPopupFromHash = () => {
   showDetailsPopup.value = true
 }
 
-// Expose for parent components
 defineExpose({
   openPopupFromHash
 })
