@@ -1,5 +1,5 @@
 <template>
-  <article class="match-card">
+  <article class="match-card" @click="openDetailsPopup">
     <div class="status-bar">
       <div class="status-badge" :class="getStatusClass(match.status)">
         <span class="status-icon"></span>
@@ -62,10 +62,19 @@
       <span class="match-id">#{{ match.id }}</span>
     </div>
   </article>
+  
+  <!-- Match Details Popup -->
+  <MatchDetailsPopup 
+    :visible="showDetailsPopup" 
+    :match="match" 
+    @close="closeDetailsPopup"
+    @openBetting="openBettingFromDetails"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import MatchDetailsPopup from './MatchDetailsPopup.vue'
 
 interface Match {
   id: number
@@ -86,6 +95,12 @@ interface Match {
 
 const props = defineProps<{ match: Match }>()
 const failedImages = ref<Set<string>>(new Set())
+const showDetailsPopup = ref(false)
+
+// Emit events for parent components
+const emit = defineEmits<{
+  openBetting: [match: Match]
+}>()
 
 const getTeamImageUrl = (opponent: any): string | null => {
   if (!opponent?.opponent?.image_url) return null
@@ -134,6 +149,33 @@ const handleImageError = (event: Event) => {
 const handleImageLoad = (event: Event) => {
   (event.target as HTMLImageElement).style.opacity = '1'
 }
+
+const openDetailsPopup = () => {
+  showDetailsPopup.value = true
+  // Mettre à jour l'URL avec le hash du match
+  window.history.replaceState(null, '', `#match-${props.match.id}`)
+}
+
+const closeDetailsPopup = () => {
+  showDetailsPopup.value = false
+  // Supprimer le hash de l'URL
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+}
+
+const openBettingFromDetails = () => {
+  closeDetailsPopup()
+  emit('openBetting', props.match)
+}
+
+// Fonction exposée pour ouvrir la popup depuis l'extérieur
+const openPopupFromHash = () => {
+  showDetailsPopup.value = true
+}
+
+// Expose for parent components
+defineExpose({
+  openPopupFromHash
+})
 </script>
 
 <style scoped>
@@ -150,6 +192,7 @@ const handleImageLoad = (event: Event) => {
     0 8px 32px rgba(0, 0, 0, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  cursor: pointer;
 }
 
 .match-card::before {
