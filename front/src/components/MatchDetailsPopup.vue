@@ -5,7 +5,7 @@
       <div class="popup-header">
         <h2 class="popup-title">
           <i class="pi pi-info-circle"></i>
-          Détails du Match
+          Match Details
         </h2>
         <button @click="closePopup" class="close-button">
           <i class="pi pi-times"></i>
@@ -110,7 +110,7 @@
           <div class="info-item">
             <div class="info-header">
               <i class="pi pi-trophy"></i>
-              <span>Tournoi</span>
+              <span>Tournament</span>
             </div>
             <p class="info-content">{{ match.league?.name || match.tournament?.name || 'Tournament TBD' }}</p>
           </div>
@@ -118,7 +118,7 @@
           <div class="info-item">
             <div class="info-header">
               <i class="pi pi-gamepad-2"></i>
-              <span>Jeu</span>
+              <span>Game</span>
             </div>
             <p class="info-content">{{ match.videogame?.name || 'CS:GO' }}</p>
           </div>
@@ -149,12 +149,12 @@
           class="betting-button"
         >
           <i class="pi pi-money-bill"></i>
-          Parier sur ce match
+          Bet on this match
         </button>
         
         <button @click="shareMatch" class="share-button">
           <i class="pi pi-share-alt"></i>
-          Partager
+          Share
         </button>
         
         <button 
@@ -163,7 +163,7 @@
           class="calendar-button"
         >
           <i class="pi pi-calendar-plus"></i>
-          Ajouter au calendrier
+          Add to calendar
         </button>
       </div>
 
@@ -181,7 +181,7 @@
             class="stream-link official"
           >
             <i class="pi pi-play"></i>
-            Stream Officiel
+            Official Stream
           </a>
           <div v-if="match.streams" class="other-streams">
             <a 
@@ -341,9 +341,9 @@ const getCountdown = (dateString?: string): string => {
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
   
-  if (days > 0) return `Dans ${days}j ${hours}h`
-  if (hours > 0) return `Dans ${hours}h ${minutes}min`
-  return `Dans ${minutes}min`
+  if (days > 0) return `In ${days}d ${hours}h`
+  if (hours > 0) return `In ${hours}h ${minutes}min`
+  return `In ${minutes}min`
 }
 
 const getStatusClass = (status: string): string => {
@@ -357,10 +357,10 @@ const getStatusClass = (status: string): string => {
 
 const getStatusText = (status: string): string => {
   switch (status?.toLowerCase()) {
-    case 'running': case 'live': return 'EN DIRECT'
-    case 'finished': return 'TERMINÉ'
-    case 'not_started': case 'upcoming': return 'À VENIR'
-    default: return status?.toUpperCase() || 'INCONNU'
+    case 'running': case 'live': return 'LIVE'
+    case 'finished': return 'FINISHED'
+    case 'not_started': case 'upcoming': return 'UPCOMING'
+    default: return status?.toUpperCase() || 'UNKNOWN'
   }
 }
 
@@ -383,7 +383,7 @@ const shareMatch = async () => {
   const shareUrl = `${baseUrl}#match-${props.match.id}`
   
   const matchTitle = `Match: ${props.match.opponents?.[0]?.opponent.name} vs ${props.match.opponents?.[1]?.opponent.name}`
-  const matchDescription = `Regardez ce match ${props.match.league?.name || props.match.tournament?.name || ''}`
+  const matchDescription = `Watch this match ${props.match.league?.name || props.match.tournament?.name || ''}`
   
   if (navigator.share) {
     try {
@@ -404,9 +404,9 @@ const shareMatch = async () => {
 const copyToClipboard = async (url: string) => {
   try {
     await navigator.clipboard.writeText(url)
-    console.log('Lien copié dans le presse-papier:', url)
+    console.log('Link copied to clipboard:', url)
   } catch (err) {
-    console.error('Erreur lors de la copie:', err)
+    console.error('Error copying link:', err)
     const textArea = document.createElement('textarea')
     textArea.value = url
     document.body.appendChild(textArea)
