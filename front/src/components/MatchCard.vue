@@ -94,7 +94,7 @@ interface Match {
     }
   }>
   league?: { name: string }
-  tournament?: { name: string }
+  tournament?: { name: string, tier: string }
 }
 
 const PushMatchBets = (matchId: number) => {
@@ -158,10 +158,11 @@ const handleImageLoad = (event: Event) => {
 @import "../../src/components/team.css";
 
 .match-bet {
-  margin-left: calc(48px + 12px);
-  margin-bottom: 0.5rem;
   display: flex;
-  gap: 10rem;
+  align-items: center;
+  justify-content: center; 
+  gap: 15rem;               
+  padding-inline: 16px;
 }
 
 .match-buttonBet {
@@ -184,7 +185,6 @@ const handleImageLoad = (event: Event) => {
   border: none;
   outline: none;
   cursor: pointer;
-
   min-width: 100px;
   max-width: 160px;
   white-space: nowrap;
@@ -493,10 +493,22 @@ const handleImageLoad = (event: Event) => {
   }
 }
 
+@media (max-width: 1024px) {
+  .match-bet {
+    padding-inline: 12px;        /* gouttières un peu plus petites */
+    gap: 10rem;
+  }
+}
+
 @media (max-width: 768px) {
+  .match-bet {
+    margin-left: 0;
+    gap: 5rem;
+    justify-content: center;
+  }
   .teams-section { 
     flex-direction: column; 
-    gap: 1rem; 
+    gap: 1rem;
   }
   
   .team { 
@@ -521,14 +533,14 @@ const handleImageLoad = (event: Event) => {
   
   .tournament-section { 
     flex-direction: column; 
-    gap: 0.75rem; 
-    text-align: center; 
+    gap: 0.75rem;
+    text-align: center;
   }
   
-  .status-bar { 
+  .status-bar {
     flex-direction: column; 
-    gap: 0.75rem; 
-    text-align: center; 
+    gap: 0.75rem;
+    text-align: center;
   }
 
   .match-card {

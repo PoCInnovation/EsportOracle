@@ -28,10 +28,10 @@
               <div v-else class="team-fallback">
                 {{ matchesStore.getTeamInitials(firstOpponent.name) }}
               </div>
+              </div>
               <div class="team-info-centered">
                 <h3 class="team-name-centered">{{ firstOpponent.name }}</h3>
               </div>
-            </div>
           </div>
 
           <!-- Score Match-->
@@ -53,10 +53,16 @@
               <div v-else class="team-fallback">
                 {{ matchesStore.getTeamInitials(secondOpponent.name) }}
               </div>
-              <div class="team-info-centered">
+              </div>
+              <div  v-if="secondOpponent?.name" class="team-info-centered">
                 <h3 class="team-name-centered">{{ secondOpponent.name }}</h3>
               </div>
             </div>
+        </div>
+
+        <div class="matchesBets-container">
+          <div class="button-container">
+            <button class="button-bets">Parier</button>
           </div>
         </div>
     </div>
@@ -158,6 +164,9 @@ const handleImageLoad = (event: Event) => {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .team-logo {
@@ -197,6 +206,13 @@ const handleImageLoad = (event: Event) => {
   font-weight: 800;
   color: #ffffff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(251, 146, 60, 0.2));
+  border-radius: 0.5rem;
 }
 
 .team-name-centered {
@@ -216,7 +232,45 @@ const handleImageLoad = (event: Event) => {
   color: #fb923c;
 }
 
-@import "../../components/team.css";
+.button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%; 
+}
 
+.button-bets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: rgba(249, 115, 22, 0.3);
+  border: none;
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+  max-width: 240px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.button-bets:hover { 
+    transform: translateY(-1px); 
+    outline-color: #fb923c;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(15px);
+}
 
 </style>

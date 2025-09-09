@@ -28,7 +28,7 @@ export const matchStore = defineStore('match', () => {
         }
         tournament?: {
             name: string
-            tier: "s" | "a" | "b" | "c" | "d";
+            tier: 's'|'a'|'b'|'c'|'d'|'unranked'
         }
     }
 
@@ -81,11 +81,25 @@ export const matchStore = defineStore('match', () => {
   })
 
   const getTeamImageUrl = (opponent: any): string | null => {
+    if (!opponent) return null;
+    if (!opponent.image_url) return null;
+
     const url = opponent.image_url.trim()
     if (!url || url === 'null'  || url === 'undefined' || failedImages.value.has(url)) return null
     try { new URL(url); return url } catch { return null }
 }
 
+    const retriveMatchesByRank = (tier: string): number[] => {
+        return matches.value
+        .filter(m => m.tournament?.tier?.toLowerCase() === tier.toLowerCase())
+        .map(m => m.id)
+    }
+
+    const specificMatch = (tiers: string[]) => {
+        return matches.value.filter(match =>
+        tiers.includes(match.tournament?.tier ?? "")
+        );
+    }
 
 const getTeamInitials = (teamName: string): string => {
   if (!teamName) return '?'
@@ -147,10 +161,14 @@ const getTeamInitials = (teamName: string): string => {
         return Url;
    }
 
-   const fetchMatches = async (Url: string, matchType: 'upcoming' | 'current' | 'past'): Promise<void> => {
+   const fetchMatches = async (Url: string | null, matchType: 'upcoming' | 'current' | 'past'): Promise<void> => {
     try {
         if (currentAbortController) {
             currentAbortController.abort()
+        }
+        if (Url === null) {
+            console.log(`Sur Home pour l'instant`)
+            return
         }
 
         currentAbortController = new AbortController()
@@ -198,7 +216,7 @@ const getTeamInitials = (teamName: string): string => {
     
     console.log(`Successfully loaded ${data.length} matches`)
 
-        console.log("Matches:", JSON.stringify(data, null, 2))
+        //console.log("Matches:", JSON.stringify(data, null, 2))
     } catch (err) {
             console.error('Error fetching matches:', err)
             error.value = err instanceof Error ? err.message : 'Une erreur inconnue est survenue'
@@ -227,5 +245,7 @@ const getTeamInitials = (teamName: string): string => {
         getTeamImageUrl,
         getTeamInitials,
         lastUpdated,
+        retriveMatchesByRank,
+        specificMatch
    }
 })

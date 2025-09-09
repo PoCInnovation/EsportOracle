@@ -19,7 +19,8 @@ type WalletName = 'MetaMask' | 'Coinbase Wallet' | 'Trust Wallet' | 'Brave Walle
 const navigation = [
   { name: 'Live Matches', href: '/matches/current', icon: '🔴' },
   { name: 'Upcoming Matches', href: '/matches/upcoming', icon: '⏰' },
-  { name: 'Past Matches', href: '/matches/past', icon: '📚' }
+  { name: 'Past Matches', href: '/matches/past', icon: '📚' },
+  { name: 'Bets', href: '/bets', icon: '💸'}
 ]
 
 const mobileMenuOpen = ref(false)

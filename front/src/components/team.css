@@ -26,7 +26,6 @@
   height: 3.5rem;
   border-radius: 1rem;
   background: rgba(45, 45, 45, 0.9);
-  display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(249, 115, 22, 0.3);
@@ -38,6 +37,8 @@
     0 4px 15px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
+  display: flex;
+    gap: 8px; 
 }
 
 .team-logo-container::before {
@@ -99,9 +100,6 @@
   transition: all 0.3s ease;
 }
 
-/*
-centrer sur l'image
-*/
 
 .team:hover .team-name {
   color: #fb923c;
@@ -114,4 +112,101 @@ centrer sur l'image
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.team-info-centered {
+  text-align: center;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.team-fallback {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(251, 146, 60, 0.2));
+  border-radius: 0.5rem;
+}
+
+.team-name-centered {
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+}
+
+.team-logo-container {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-centered:hover {
+  transform: scale(1.02);
+}
+
+.team-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+  padding: 2.5rem;
+  background: rgba(26, 26, 26, 0.85);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 2rem;
+  backdrop-filter: blur(25px);
+  box-shadow: 
+    0 8px 32px rgba(249, 115, 22, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  z-index: 10;
+  gap: 2rem;
+}
+
+.teams-section {
+  display: flex;           
+  justify-content: center; 
+  align-items: flex-end;   
+  gap: 2rem;              
+}
+
+.team-centered {
+  display: flex;
+  flex-direction: column;  
+  align-items: center;     
+  gap: 0.5rem;             
+}
+
+.team-logo-container {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-name-centered {
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+}
+
+.vs-text {
+  font-size: 2rem;
+  font-weight: 900;
+  color: rgba(249, 115, 22, 0.8);
+  text-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
+  align-self: center;
 }

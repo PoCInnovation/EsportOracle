@@ -19,7 +19,7 @@
         optionLabel="name" 
         optionValue="id"
         filter 
-        placeholder="Select Teams" 
+        placeholder="Select Teams"
         :maxSelectedLabels="0"
         class="custom-multiselect"
       >Teams</MultiSelect>
