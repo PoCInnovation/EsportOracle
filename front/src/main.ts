@@ -10,6 +10,7 @@ import App from './App.vue'
 import router from './router'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import Ripple from 'primevue/ripple'
+import './styles/multiselect-custom.css'
 
 const blackOrangePreset = definePreset(Aura, {
   semantic: {
