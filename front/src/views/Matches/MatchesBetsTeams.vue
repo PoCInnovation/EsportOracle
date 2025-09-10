@@ -5,7 +5,7 @@
         <i class="pi pi-wallet"></i>
         Bets
       </h1>
-      <router-link to="/matches/current" class="page-Backtitle">
+      <router-link to="#" @click.prevent="goBack" class="page-Backtitle">
         <h2>
             <i class="pi pi-arrow-left"></i>
             Back to Matches
@@ -74,11 +74,12 @@
 import { matchStore } from '@/stores/matchStore'
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import 'primeicons/primeicons.css'
 
 const route = useRoute()
+const router = useRouter()
 
 const MatchId = ref(Number(route.params.id))
 const matchesStore = matchStore()
@@ -101,6 +102,10 @@ const handleImageError = (event: Event) => {
 
 const handleImageLoad = (event: Event) => {
   (event.target as HTMLImageElement).style.opacity = '1'
+}
+
+const goBack = () => {
+  router.go(-1)
 }
 
 </script>
