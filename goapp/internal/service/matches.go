@@ -55,7 +55,7 @@ func (s *MatchService) FetchAndUpdateOracle() error {
 
 	log.Printf("Fetched %d matches from PandaScore API\n", len(matches))
 
-	var contractMatches []contract.EsportOracleMatch
+	var contractMatches []contract.EsportOracleTypesMatch
 	for _, match := range matches {
 		contractMatch := match.ToContractMatch()
 		contractMatches = append(contractMatches, contractMatch)
@@ -154,7 +154,7 @@ func (s *MatchService) GetMatchByIDAndSendToContract(matchID int) error {
 		}
 	}
 
-	contractMatches := []contract.EsportOracleMatch{contractMatch}
+	contractMatches := []contract.EsportOracleTypesMatch{contractMatch}
 	if err := s.ethereumClient.SendMatchesToContract(contractMatches); err != nil {
 		return fmt.Errorf("s.ethereumClient.SendMatchesToContract: %w", err)
 	}

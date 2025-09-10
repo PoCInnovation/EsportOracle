@@ -3,42 +3,12 @@ pragma solidity ^0.8.20;
 
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
+import "./esportOracleTypes.sol";
+
 contract EsportOracle is Pausable {
+    using EsportOracleTypes for *;
     address public _owner;
-
-    struct Result {
-        uint8 _score;
-        uint256 _teamId;
-    }
-
-    struct Games {
-        uint256 _id;
-        bool _finished;
-        uint256 _winnerId;
-    }
-
-    struct Opponents {
-        string _acronym;
-        uint256 _id;
-        string _name;
-    }
-
-    struct Match {
-        uint256 _id;
-        Opponents[] _opponents;
-        Games[] _game;
-        Result[] _result;
-        uint256 _winnerId;
-        uint256 _beginAt;
-    }
-
-    // Structure pour suivre les violations des nœuds
-    struct NodeViolation {
-        uint256 incorrectMatches;
-        bool isBanned;
-    }
-
-    mapping(uint256 => Match) public _matchMapping;
+    mapping(uint256 => EsportOracleTypes.Match) public _matchMapping;
     address[] private listedNodes;
     mapping(address => uint256) public _fundsStaked;
     mapping(bytes32 => uint8) public _matchVotes;
@@ -49,7 +19,7 @@ contract EsportOracle is Pausable {
     mapping(uint256 => bytes32[]) public _matchIdToHashes;
     mapping(bytes32 => uint256) public _hashToMatchId;
 
-    mapping(address => NodeViolation) public _nodeViolations;
+    mapping(address => EsportOracleTypes.NodeViolation) public _nodeViolations;
     uint256 public constant MAX_VIOLATIONS = 3;
     uint256 public constant PUNISHMENT_AMOUNT = 0.0001 ether;
 
@@ -297,7 +267,7 @@ contract EsportOracle is Pausable {
      * @notice function called by listed nodes only, to register new matches
      * @param newMatch : a list of matches to register
      */
-    function handleNewMatches(Match[] memory newMatch) external whenNotPaused notBanned(msg.sender) onlyListedNodes {
+    function handleNewMatches(EsportOracleTypes.Match[] memory newMatch) external whenNotPaused notBanned(msg.sender) onlyListedNodes {
         require(newMatch.length > 0, "No match data provided");
         nbMatchSent++;
 
@@ -338,6 +308,9 @@ contract EsportOracle is Pausable {
                 uint256 validMatchId = newMatch[i]._id;
                 addNewMatch(newMatch[i]);
 
+                // Reconstruction du match accepté pour comparaison
+                EsportOracleTypes.Match memory acceptedMatch = newMatch[i];
+
                 for (uint j = 0; j < _pendingMatchesHashes.length; j++) {
                     bytes32 currentHash = _pendingMatchesHashes[j];
 
@@ -345,12 +318,22 @@ contract EsportOracle is Pausable {
                         uint256 currentMatchId = _hashToMatchId[currentHash];
                         bool isConflictingMatch = (currentMatchId == validMatchId && currentMatchId != 0);
 
-                        address[] memory votersForCurrentHash = _addressByHash[currentHash];
-
                         if (isConflictingMatch) {
-                            for (uint k = 0; k < votersForCurrentHash.length; k++) {
-                                if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
-                                    punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
+                            address[] memory votersForCurrentHash = _addressByHash[currentHash];
+                            
+                            // Nous devons reconstruire le match conflictuel pour comparaison
+                            // Pour l'instant, on punit seulement si c'est vraiment substantiellement différent
+                            // Note: Cette logique peut être améliorée en stockant les données de match temporairement
+                            
+                            // Punir seulement si nous avons des preuves de différences substantielles
+                            // Pour éviter les faux positifs, on réduit la sévérité
+                            bool shouldPunish = _matchVotes[currentHash] == 1; // Punir seulement les votes solitaires
+                            
+                            if (shouldPunish) {
+                                for (uint k = 0; k < votersForCurrentHash.length; k++) {
+                                    if (!_nodeViolations[votersForCurrentHash[k]].isBanned) {
+                                        punishNode(votersForCurrentHash[k], _addressByHash[matchHash]);
+                                    }
                                 }
                             }
                         }
@@ -395,7 +378,7 @@ contract EsportOracle is Pausable {
      * @notice add match blockchain
      * @param newMatch a tab of a Match
      */
-    function addNewMatch(Match memory newMatch) internal returns (Match memory) {
+    function addNewMatch(EsportOracleTypes.Match memory newMatch) internal returns (EsportOracleTypes.Match memory) {
         uint256 matchId = newMatch._id;
 
         // SECTION 1: INITIAL MATCH CREATION
@@ -408,19 +391,19 @@ contract EsportOracle is Pausable {
 
             // Copy all opponents data
             for (uint256 j = 0; j < newMatch._opponents.length; j++) {
-                Opponents memory opponent = newMatch._opponents[j];
+                EsportOracleTypes.Opponents memory opponent = newMatch._opponents[j];
                 _matchMapping[matchId]._opponents.push(opponent);
             }
 
             // Copy all games data
             for (uint256 j = 0; j < newMatch._game.length; j++) {
-                Games memory game = newMatch._game[j];
+                EsportOracleTypes.Games memory game = newMatch._game[j];
                 _matchMapping[matchId]._game.push(game);
             }
 
             // Copy all results data
             for (uint256 j = 0; j < newMatch._result.length; j++) {
-                Result memory result = newMatch._result[j];
+                EsportOracleTypes.Result memory result = newMatch._result[j];
                 _matchMapping[matchId]._result.push(result);
             }
             return _matchMapping[matchId];
@@ -438,7 +421,7 @@ contract EsportOracle is Pausable {
         if (currentGameHash != newGameHash) {
             delete (_matchMapping[matchId]._game);
             for (uint256 j = 0; j < newMatch._game.length; j++) {
-                Games memory game = newMatch._game[j];
+                EsportOracleTypes.Games memory game = newMatch._game[j];
                 _matchMapping[matchId]._game.push(game);
             }
         }
@@ -450,7 +433,7 @@ contract EsportOracle is Pausable {
         if (currentResultHash != newResultHash) {
             delete (_matchMapping[matchId]._result);
             for (uint256 j = 0; j < newMatch._result.length; j++) {
-                Result memory result = newMatch._result[j];
+                EsportOracleTypes.Result memory result = newMatch._result[j];
                 _matchMapping[matchId]._result.push(result);
             }
         }
@@ -462,7 +445,7 @@ contract EsportOracle is Pausable {
         if (currentOpponentHash != newOppenentHash) {
             delete (_matchMapping[matchId]._opponents);
             for (uint256 j = 0; j < newMatch._opponents.length; j++) {
-                Opponents memory opponent = newMatch._opponents[j];
+                EsportOracleTypes.Opponents memory opponent = newMatch._opponents[j];
                 _matchMapping[matchId]._opponents.push(opponent);
             }
         }
@@ -475,7 +458,7 @@ contract EsportOracle is Pausable {
      * @return The match object
      * @dev This function retrieves a match by its ID from the mapping
      */
-    function getMatchById(uint256 matchId) external view returns (Match memory) {
+    function getMatchById(uint256 matchId) external view returns (EsportOracleTypes.Match memory) {
         return (_matchMapping[matchId]);
     }
 
@@ -500,5 +483,9 @@ contract EsportOracle is Pausable {
         } else {
             return nbVote > (listedNodes.length / 2);
         }
+    }
+    function checkQorum(EsportOracleTypes.Match memory matchData) public view returns (bool) {
+        bytes32 matchHash = keccak256(abi.encode(matchData));
+        return quorumIsReached(_matchVotes[matchHash]);
     }
 }

@@ -246,6 +246,199 @@
   },
   {
     "type": "function",
+    "name": "callMatchOracle",
+    "inputs": [
+      {
+        "name": "matchId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "matchData",
+        "type": "tuple",
+        "internalType": "struct EsportOracleTypes.Match",
+        "components": [
+          {
+            "name": "_id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_opponents",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Opponents[]",
+            "components": [
+              {
+                "name": "_acronym",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_name",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "_game",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Games[]",
+            "components": [
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_finished",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "_winnerId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_result",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Result[]",
+            "components": [
+              {
+                "name": "_score",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "_teamId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_winnerId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_beginAt",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "checkQorum",
+    "inputs": [
+      {
+        "name": "matchData",
+        "type": "tuple",
+        "internalType": "struct EsportOracleTypes.Match",
+        "components": [
+          {
+            "name": "_id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_opponents",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Opponents[]",
+            "components": [
+              {
+                "name": "_acronym",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_name",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "_game",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Games[]",
+            "components": [
+              {
+                "name": "_id",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "_finished",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "_winnerId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_result",
+            "type": "tuple[]",
+            "internalType": "struct EsportOracleTypes.Result[]",
+            "components": [
+              {
+                "name": "_score",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "_teamId",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "_winnerId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "_beginAt",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getListedNodes",
     "inputs": [],
     "outputs": [
@@ -271,7 +464,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct EsportOracle.Match",
+        "internalType": "struct EsportOracleTypes.Match",
         "components": [
           {
             "name": "_id",
@@ -281,7 +474,7 @@
           {
             "name": "_opponents",
             "type": "tuple[]",
-            "internalType": "struct EsportOracle.Opponents[]",
+            "internalType": "struct EsportOracleTypes.Opponents[]",
             "components": [
               {
                 "name": "_acronym",
@@ -303,7 +496,7 @@
           {
             "name": "_game",
             "type": "tuple[]",
-            "internalType": "struct EsportOracle.Games[]",
+            "internalType": "struct EsportOracleTypes.Games[]",
             "components": [
               {
                 "name": "_id",
@@ -325,7 +518,7 @@
           {
             "name": "_result",
             "type": "tuple[]",
-            "internalType": "struct EsportOracle.Result[]",
+            "internalType": "struct EsportOracleTypes.Result[]",
             "components": [
               {
                 "name": "_score",
@@ -359,7 +552,7 @@
     "name": "getMatchRequest",
     "inputs": [
       {
-        "name": "requestId",
+        "name": "matchId",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -368,7 +561,7 @@
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct EsportOracleRequester.MatchRequest",
+        "internalType": "struct EsportOracleTypes.MatchRequest",
         "components": [
           {
             "name": "matchId",
@@ -423,12 +616,53 @@
   },
   {
     "type": "function",
+    "name": "getRequestByMatchId",
+    "inputs": [
+      {
+        "name": "matchId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct EsportOracleTypes.MatchRequest",
+        "components": [
+          {
+            "name": "matchId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "requester",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "fee",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "fulfilled",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "handleNewMatches",
     "inputs": [
       {
         "name": "newMatch",
         "type": "tuple[]",
-        "internalType": "struct EsportOracle.Match[]",
+        "internalType": "struct EsportOracleTypes.Match[]",
         "components": [
           {
             "name": "_id",
@@ -438,7 +672,7 @@
           {
             "name": "_opponents",
             "type": "tuple[]",
-            "internalType": "struct EsportOracle.Opponents[]",
+            "internalType": "struct EsportOracleTypes.Opponents[]",
             "components": [
               {
                 "name": "_acronym",
@@ -460,7 +694,7 @@
           {
             "name": "_game",
             "type": "tuple[]",
-            "internalType": "struct EsportOracle.Games[]",
+            "internalType": "struct EsportOracleTypes.Games[]",
             "components": [
               {
                 "name": "_id",
@@ -482,7 +716,7 @@
           {
             "name": "_result",
             "type": "tuple[]",
-            "internalType": "struct EsportOracle.Result[]",
+            "internalType": "struct EsportOracleTypes.Result[]",
             "components": [
               {
                 "name": "_score",
@@ -608,24 +842,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "test",
-    "inputs": [
-      {
-        "name": "requestId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "matchId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "payable"
   },
   {
     "type": "function",

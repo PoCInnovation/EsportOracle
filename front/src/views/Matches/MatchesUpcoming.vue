@@ -62,6 +62,7 @@
         v-for="match in MatchesStore.upcomingMatches" 
         :key="match.id" 
         :match="match"
+        :ref="el => matchCardRefs[match.id] = el"
         class="match-item"
       />
     </div>
@@ -83,7 +84,7 @@
 
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import MatchCard from '@/components/MatchCard.vue'
 import { matchStore } from '@/stores/matchStore'
 import Button from 'primevue/button'
@@ -95,6 +96,7 @@ const route = useRoute()
 const router = useRouter()
 const teamId = ref(route.query.teamId)
 const MatchesStore = matchStore()
+const matchCardRefs = ref<Record<string, any>>({})
 
 const valueTeamId: string = teamId.value as string
 let Url = MatchesStore.createUrlMatches("upcoming", valueTeamId)
@@ -160,6 +162,33 @@ const refreshMatches = async (): Promise<void> => {
   MatchesStore.retrieveIdAndNamesTeams(MatchesStore.upcomingMatches)
 }
 
+// Fonction pour détecter et ouvrir la popup depuis le hash
+const checkAndOpenMatchFromHash = async () => {
+  const hash = window.location.hash
+  if (hash.startsWith('#match-')) {
+    const matchId = hash.replace('#match-', '')
+    
+    // Attendre que les matches soient chargés et les refs créées
+    await nextTick()
+    
+    // Chercher le match correspondant
+    const matchCard = matchCardRefs.value[matchId]
+    if (matchCard && matchCard.openPopupFromHash) {
+      matchCard.openPopupFromHash()
+    }
+  }
+}
+
+// Écouter les changements de hash
+const handleHashChange = () => {
+  checkAndOpenMatchFromHash()
+}
+
+onMounted(async () => {
+  // Ajouter l'écouteur de changement de hash
+  window.addEventListener('hashchange', handleHashChange)
+})
+
 /**
  * Component lifecycle - fetch matches on mount
  */
@@ -167,12 +196,17 @@ onMounted(async () => {
   await MatchesStore.fetchMatches(Url, "upcoming")
   MatchesStore.retrieveIdAndNamesTeams(MatchesStore.upcomingMatches)
   
+  // Vérifier s'il y a un hash à l'ouverture de la page
+  await checkAndOpenMatchFromHash()
+  
   // Set up auto-refresh every 30 seconds for live updates
   startAutoRefresh()
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
+  // Supprimer l'écouteur de hash
+  window.removeEventListener('hashchange', handleHashChange)
 })
 watch(() => route.params.teamId, async (newTeamId) => {
   teamId.value = newTeamId

@@ -1,5 +1,5 @@
 <template>
-  <article class="match-card">
+  <article class="match-card" @click="openDetailsPopup">
     <div class="status-bar">
       <div class="status-badge" :class="getStatusClass(match.status)">
         <span class="status-icon"></span>
@@ -70,15 +70,24 @@
       <span class="match-id">#{{ match.id }}</span>
     </div>
   </article>
+  
+  <!-- Match Details Popup -->
+  <MatchDetailsPopup 
+    :visible="showDetailsPopup" 
+    :match="match" 
+    @close="closeDetailsPopup"
+    @openBetting="openBettingFromDetails"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { matchStore } from '@/stores/matchStore'
 
 const router = useRouter()
-const matchesStore = matchStore()
+
+import MatchDetailsPopup from './MatchDetailsPopup.vue'
+
 
 interface Match {
   id: number
@@ -103,6 +112,11 @@ const PushMatchBets = (matchId: number) => {
 
 const props = defineProps<{ match: Match }>()
 const failedImages = ref<Set<string>>(new Set())
+const showDetailsPopup = ref(false)
+
+const emit = defineEmits<{
+  openBetting: [match: Match]
+}>()
 
 const getTeamImageUrl = (opponent: any): string | null => {
   if (!opponent?.opponent?.image_url) return null
@@ -151,6 +165,29 @@ const handleImageError = (event: Event) => {
 const handleImageLoad = (event: Event) => {
   (event.target as HTMLImageElement).style.opacity = '1'
 }
+
+const openDetailsPopup = () => {
+  showDetailsPopup.value = true
+  window.history.replaceState(null, '', `#match-${props.match.id}`)
+}
+
+const closeDetailsPopup = () => {
+  showDetailsPopup.value = false
+  window.history.replaceState(null, '', window.location.pathname + window.location.search)
+}
+
+const openBettingFromDetails = () => {
+  closeDetailsPopup()
+  emit('openBetting', props.match)
+}
+
+const openPopupFromHash = () => {
+  showDetailsPopup.value = true
+}
+
+defineExpose({
+  openPopupFromHash
+})
 </script>
 
 <style scoped>
@@ -247,6 +284,8 @@ const handleImageLoad = (event: Event) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
   padding-bottom: 3rem;
+  cursor: pointer;
+
 }
 
 .match-card::before {
