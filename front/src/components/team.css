@@ -179,13 +179,25 @@
   display: flex;           
   justify-content: center; 
   align-items: flex-end;   
-  gap: 2rem;              
+  gap: 2rem;
+}
+
+.teams-sectionOfTheDay {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 2;
 }
 
 .team-centered {
   display: flex;
   flex-direction: column;  
-  align-items: center;     
+  align-items: center;
   gap: 0.5rem;             
 }
 

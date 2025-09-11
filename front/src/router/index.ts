@@ -9,6 +9,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MatchesBetsTeams from '@/views/Matches/MatchesBetsTeams.vue'
 import MatchesSelectorBets from '@/views/Matches/MatchesSelectorBets.vue'
 import MatchesHistoryBets from '@/views/Matches/MatchesHistoryBets.vue'
+import { matchStore } from '@/stores/matchStore'
+
+const mapView = (v?: string) =>
+  v === 'history' ? 'past' : (v as 'current'|'upcoming'|'past' | undefined) ?? 'current'
 
 const routes = [
   {path: '/', name: 'Home', component: Home},
@@ -24,8 +28,28 @@ const routes = [
   
   {path: '/bets', name: 'Bets', component: MatchesSelectorBets, meta: { view: null }},
   
-  { path: '/bets/current',  name: 'BetsCurrent',  component: MatchesSelectorBets, meta: { view: 'current' } },
-  { path: '/bets/upcoming', name: 'BetsUpcoming', component: MatchesSelectorBets, meta: { view: 'upcoming' } },
+  { path: '/bets/current',  name: 'BetsCurrent',  component: MatchesSelectorBets, 
+    async beforeEnter(to) {
+      console.log('[guard] to:', to.fullPath, 'view=', to.params.view);
+      const store = matchStore()
+      const TypeMatches = (to.meta.view as string) ?? 'current'
+      const Url = store.createUrlMatches("current", "")
+      await store.fetchMatches(Url, mapView(TypeMatches))
+      console.log("Succesfully fetched matches");
+      return true
+    }, meta: { view: 'current' } },
+    
+  { path: '/bets/upcoming', name: 'BetsUpcoming', component: MatchesSelectorBets,
+    async beforeEnter(to) {
+      console.log('[guard] to:', to.fullPath, 'view=', to.params.view);
+      const store = matchStore()
+      const TypeMatches = (to.meta.view as string) ?? 'upcoming'
+      const Url = store.createUrlMatches("upcoming", "")
+      await store.fetchMatches(Url, mapView(TypeMatches))
+      console.log("Succesfully fetched matches");
+      return true
+    }, meta: { view: 'upcoming' } },
+
   { path: '/bets/history',  name: 'BetsHistory',  component: MatchesHistoryBets, meta: { view: 'history' } },
 
 

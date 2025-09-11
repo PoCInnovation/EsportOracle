@@ -145,7 +145,7 @@
       <div class="action-buttons">
         <button 
           v-if="canShowBetting" 
-          @click="openBetting" 
+          @click="PushMatchBets(match.id)"
           class="betting-button"
         >
           <i class="pi pi-money-bill"></i>
@@ -204,6 +204,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 interface Match {
   id: number
@@ -234,6 +237,10 @@ interface Match {
     raw_url: string
   }>
   official_stream_url?: string
+}
+
+const PushMatchBets = (matchId: number) => {
+  return router.push(`/bets/upcoming/${matchId}`)
 }
 
 const props = defineProps<{

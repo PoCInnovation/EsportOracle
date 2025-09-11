@@ -1,19 +1,19 @@
 <template>
-    <div v-if="specificMatch">
+    <div v-if="firstOpponent && secondOpponent" @click="openDetailsPopup">
       <h1 class="page-title-card">Match du Jour</h1>
     <Card class="tournament-card">
         <template #title>
             <div class="tournament-title">
-                <span class="league-name"> {{ specificMatch?.league?.name }}</span>
+                <span class="league-name"> {{ props.match?.league?.name }}</span>
                 <span class="dot">•</span>
-                <span class="round-label">{{ specificMatch.tournament?.name }}</span>
+                <span class="round-label">{{ props.match?.tournament?.name }}</span>
             </div>
         </template>
 
         <template #content>
             <Card class="motd-card">
                 <template #content>
-                  <div class="teams-section">
+                  <div class="teams-sectionOfTheDay">
                         <!-- Équipe 1 -->
                     <div class="team-centered">
                             <div class="team-logo-container" v-if="firstOpponent">
@@ -62,24 +62,32 @@
                         </div>
                     </div>
                   <div class="odds">
-                    <button class="odd-pill" @click="$emit('select', 'home')">
+                    <button class="odd-pill" >
                       <div class="odd-title">{{ firstOpponent?.name }}</div>
                       <div class="odd-value">{{ "Cote 1" }}</div>
                     </button>
 
-                    <button class="odd-pill warning" @click="$emit('select', 'away')">
+                    <button class="odd-pill warning" >
                       <span class="corner-badge">{{ "!!" }}</span>
                       <div class="odd-title">{{ secondOpponent?.name }}</div>
                       <div class="odd-value">{{ "Cote 2" }}</div>
                     </button>
                   </div>
-                  <!--Faire un cercle responsive si la cote la plus eleve reçoit un cercle rouge.-->
                       </template>
                   </Card>
               </template>
           </Card>
           <Divider/>
           </div>
+
+          <!-- Match Details Popup -->
+  <MatchDetailsPopup
+    v-if="props.match"
+    :visible="showDetailsPopup" 
+    :match="props.match" 
+    @close="closeDetailsPopup"
+    @openBetting="openBettingFromDetails"
+  />
 </template>
 
 <script setup lang="ts">
@@ -90,7 +98,13 @@ import Card from 'primevue/card';
 import Divider from 'primevue/divider';
 import 'primeicons/primeicons.css';
 
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+const showDetailsPopup = ref(false)
+
+import { computed,ref, type UnwrapRef } from 'vue';
+import MatchDetailsPopup from './MatchDetailsPopup.vue';
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const failedImages = ref<Set<string>>(new Set());
 
@@ -100,21 +114,23 @@ let Url = matchesStore.createUrlMatches("current", "");
 
 const { matches } = storeToRefs(matchesStore)
 
+type MatchesArray = UnwrapRef<typeof matchesStore.matches>
+type ArrayElement<T> = T extends (infer U)[] ? U : never
+type MatchFromStore = ArrayElement<MatchesArray>  
+
 interface Props {
-  view?: typeof matchesStore.matches
+  match?: MatchFromStore | null
 }
 
 const props = defineProps<Props>();
 
-const specificMatch = computed(() => {
-  return matches.value.filter(match =>
-  ["s", "a"].includes(match.tournament?.tier ?? "")
-  )[0] ?? null;
-})
 
-const firstOpponent = computed(() => specificMatch.value?.opponents?.[0]?.opponent || null)
-const secondOpponent = computed(() => specificMatch.value?.opponents?.[1]?.opponent || null)
+const firstOpponent = computed(() => props.match?.opponents?.[0]?.opponent || null)
+const secondOpponent = computed(() => props.match?.opponents?.[1]?.opponent || null)
 
+const emit = defineEmits<{
+  openBetting: [match: MatchFromStore]
+}>()
 
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement
@@ -126,12 +142,40 @@ const handleImageLoad = (event: Event) => {
   (event.target as HTMLImageElement).style.opacity = '1'
 }
 
+const closeDetailsPopup = () => {
+  showDetailsPopup.value = false
+  router.replace({ hash: '' })
+}
+
+const openDetailsPopup = () => {
+  showDetailsPopup.value = true
+  if (props.match) {
+    router.replace({ hash: `#match-${props.match.id}` })
+  }
+}
+
+const openBettingFromDetails = () => {
+  closeDetailsPopup()
+  if (props.match) {
+    emit('openBetting', props.match)
+  }
+}
+
+const openPopupFromHash = () => {
+  showDetailsPopup.value = true
+}
+
+defineExpose({
+  openPopupFromHash
+})
+
 </script>
 
 <style scoped>
 
 @import "../components/matches.css";
 @import "../components/team.css";
+
 
 /* ----- Card externe (Tournoi) ----- */
 .tournament-card {
@@ -202,11 +246,19 @@ const handleImageLoad = (event: Event) => {
 }
 
 .vs-text {
-  font-size: 2rem;
+  margin: 0 1.5rem;
+  font-size: 1.8rem;
   font-weight: 900;
-  color: rgba(249, 115, 22, 0.8);
-  text-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
-  animation: pulse-glow 2s ease-in-out infinite alternate;
+  color: #f97316;
+  background: linear-gradient(135deg, #f97316, #fb923c, #fbbf24);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  flex-shrink: 0;
+  animation: pulse-vs 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.5));
+  transition: all 0.3s ease;
 }
 
 /* ----- Card interne (Match) ----- */
@@ -406,25 +458,24 @@ const handleImageLoad = (event: Event) => {
 }
 
 .odd-pill {
-  position: relative; 
-  border: 0; 
+  position: relative;
+  border: 0;
   border-radius: 14px; 
   padding: 10px 12px;
-  background: #0e1013; 
+  background: #0e1013;
   outline: 1px solid rgba(255,255,255,.06);
   box-shadow: 0 4px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
-  text-align: center; 
+  text-align: center;
   cursor: pointer;
-  transition: transform .12s ease, 
+  transition: transform .12s ease,
   outline-color .12s ease;
 }
 
+
 .odd-pill:hover { 
-    transform: translateY(-1px); 
-    outline-color: rgba(249,115,22,.45); 
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(15px);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 40px rgba(249, 115, 22, 0.5);
+  background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
 }
 .odd-pill .odd-title { 
     font-size: .8rem; 

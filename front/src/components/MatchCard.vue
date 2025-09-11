@@ -54,14 +54,6 @@
       </div>
     </div>
 
-    <div class="match-bet" v-if="match.status === 'running' && match && match.opponents ">
-        <button @click="PushMatchBets(match.id)" class="match-buttonBet">{{ match.opponents[0].opponent.name }}</button>
-        <button @click="PushMatchBets(match.id)" class="match-buttonBet">{{ match.opponents[1].opponent.name }}</button>
-    </div>
-    <div v-else-if="match.status === 'not_started'">
-      <button class="match-buttonBet-upcoming">Ouverture le {{ formatDate(match.begin_at || match.scheduled_at) }}</button>
-    </div>
-
     <div class="tournament-section" v-if="match.league || match.tournament">
       <div class="tournament-info">
         <span class="tournament-icon">🏆</span>
@@ -87,6 +79,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 import MatchDetailsPopup from './MatchDetailsPopup.vue'
+defineOptions({ inheritAttrs: false })
 
 
 interface Match {
@@ -104,10 +97,6 @@ interface Match {
   }>
   league?: { name: string }
   tournament?: { name: string, tier: string }
-}
-
-const PushMatchBets = (matchId: number) => {
-  return router.push(`/bets/current/${matchId}`)
 }
 
 const props = defineProps<{ match: Match }>()

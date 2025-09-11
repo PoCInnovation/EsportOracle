@@ -1,5 +1,5 @@
 <template>
-    <div class="matches-container">
+  <div class="matches-container">
     <!-- Floating Background Icons -->
 
     <div class="matches-header">
@@ -27,7 +27,7 @@
     <Button type="submit" severity="secondary" label="Submit" class="refresh-button">
       Submit
     </Button>
-  </form>
+    </form>
     </div>
 
     <div v-if="MatchesStore.loading && MatchesStore.currentMatches.length === 0" class="loading-container">
@@ -79,7 +79,7 @@
         </span>
       </div>
     </div>
-    </div>
+  </div>
 </template>
 
 

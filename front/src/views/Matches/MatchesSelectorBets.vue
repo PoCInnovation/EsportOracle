@@ -10,7 +10,7 @@
         </nav>
         <div class="bets-container">
             <div>
-              <MatchOfTheDay :matches="specificMatch"/>
+              <MatchOfTheDay  v-if="specificMatch" :match="specificMatch"/>
             </div>
           <div  v-if="view" class="matches-grid">
             <MatchCard
@@ -54,6 +54,7 @@ const viewMapper: Record<ViewType, ApiViewType> = {
 
 const matchesStore = matchStore()
 
+
 const { matches } = storeToRefs(matchesStore)
 
 let Url = view.value === "current" || view.value === "upcoming" ? matchesStore.createUrlMatches(view.value, "") : null
@@ -87,10 +88,8 @@ const ChoiceMatchType = (viewType: ViewType): typeof matchesStore.matches => {
   }
 }
 
-//On va utiliser un params et ce params corrrespond à l'état du site et ensuite avec cela. Je veux classer les matches par type (current, past, upcoming)
-//Si c'est upcoming, trier les matches avec upcoming.
-
 //Sur le Home, mettre que des matchs qui ont des rank S, A, pas plus. Des matches avec de l'importance
+
 
 const startAutoRefresh = () => {
   if (autoRefreshInterval) {
@@ -131,6 +130,7 @@ onUnmounted(() => {
 })
 
 watch((view), async (newView) => {
+  console.log('[watch] fetching matches for', newView)
   if (newView === "current" || newView === "upcoming") {
     Url = matchesStore.createUrlMatches(newView, "")
     console.log(`Voir le nouveau View == ${newView}`)

@@ -88,3 +88,7 @@
   padding: 16px !important;
   text-align: center !important;
 }
+
+.divider .p-divider-content {
+  background: linear-gradient(135deg, #f97316, #fb923c, #fbbf24);
+}
