@@ -11,10 +11,8 @@ import (
 )
 
 func init() {
-	err := godotenv.Load()
-	if err != nil {
-		panic("Error loading .env file")
-	}
+	// Try loading .env when developing; ignore if not present (prod uses env vars)
+	_ = godotenv.Load()
 	PandaScoreAPIToken = os.Getenv("PANDASCORE_API_TOKEN")
 	
 	// Also load blockchain-related env vars for bet contract
@@ -26,7 +24,7 @@ func init() {
 	fmt.Printf("Loaded BET_CONTRACT_ADDRESS: %s\n", betContractAddress)
 }
 
-var BaseURL = "https://api.pandascore.co"
+var BaseURL = "https://api.pandascore.co/csgo"
 var PandaScoreAPIToken string
 
 // Blockchain configuration variables (shared with bet_contract.go)
