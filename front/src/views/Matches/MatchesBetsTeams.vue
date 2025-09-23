@@ -61,8 +61,42 @@
         </div>
 
         <div class="matchesBets-container">
+          <div class="bet-details">
+            <template v-if="bet">
+              <p class="bet-description">{{ bet.bet.description }}</p>
+              <div class="bet-stats">
+                <div class="bet-stat">
+                  <span class="bet-label">Deadline</span>
+                  <span class="bet-value">{{ deadlineDisplay }}</span>
+                </div>
+                <div class="bet-stat">
+                  <span class="bet-label">Cagnotte équipe 1</span>
+                  <span class="bet-value">{{ team1PoolDisplay }} ETH</span>
+                </div>
+                <div class="bet-stat">
+                  <span class="bet-label">Cagnotte équipe 2</span>
+                  <span class="bet-value">{{ team2PoolDisplay }} ETH</span>
+                </div>
+                <div class="bet-stat highlight">
+                  <span class="bet-label">Cagnotte Totale</span>
+                  <span class="bet-value">{{ totalPoolDisplay }} ETH</span>
+                </div>
+              </div>
+            </template>
+            <template v-else-if="betsLoading">
+              <p class="bet-message">Chargement des informations du contrat...</p>
+            </template>
+            <template v-else-if="betsError">
+              <p class="bet-message bet-error">Impossible de récupérer les informations du pari : {{ betsError }}</p>
+            </template>
+            <template v-else>
+              <p class="bet-message">Aucun pari n'est disponible pour ce match pour le moment.</p>
+            </template>
+          </div>
           <div class="button-container">
-            <button class="button-bets">Parier</button>
+            <button class="button-bets" :disabled="!bet || bet.bet.resolved">
+              {{ bet && bet.bet.resolved ? 'Pari clôturé' : 'Parier' }}
+            </button>
           </div>
         </div>
     </div>
@@ -72,7 +106,8 @@
 
 <script setup lang="ts">
 import { matchStore } from '@/stores/matchStore'
-import { computed, ref } from 'vue'
+import { betStore } from '@/stores/betStore'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -83,15 +118,50 @@ const router = useRouter()
 
 const MatchId = ref(Number(route.params.id))
 const matchesStore = matchStore()
+const betsStore = betStore()
 const failedImages = ref<Set<string>>(new Set())
 
 const { matches } = storeToRefs(matchesStore)
+const { loading: betsLoading, error: betsError } = storeToRefs(betsStore)
 
 const specificMatch = computed(() => {
   return matches.value.find(match => match.id === MatchId.value)
 })
 const firstOpponent = computed(() => specificMatch.value?.opponents?.[0]?.opponent || null)
 const secondOpponent = computed(() => specificMatch.value?.opponents?.[1]?.opponent || null)
+
+const bet = computed(() => betsStore.getBetByMatchId(MatchId.value))
+
+const toBigInt = (value?: string) => {
+  try {
+    return value ? BigInt(value) : 0n
+  } catch {
+    return 0n
+  }
+}
+
+const formatEther = (wei: bigint) => {
+  const eth = Number(wei) / 1e18
+  if (!Number.isFinite(eth) || Number.isNaN(eth)) return '0.000'
+  return eth.toFixed(3)
+}
+
+const team1PoolDisplay = computed(() => formatEther(toBigInt(bet.value?.bet.team1Pool)))
+const team2PoolDisplay = computed(() => formatEther(toBigInt(bet.value?.bet.team2Pool)))
+const totalPoolDisplay = computed(() => formatEther(bet.value ? betsStore.getTotalPool(bet.value) : 0n))
+
+const deadlineDisplay = computed(() => {
+  if (!bet.value) return 'Non définie'
+  const deadline = betsStore.getDeadline(bet.value)
+  if (!deadline) return 'Non définie'
+  return deadline.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+})
 
 
 const handleImageError = (event: Event) => {
@@ -107,6 +177,12 @@ const handleImageLoad = (event: Event) => {
 const goBack = () => {
   router.go(-1)
 }
+
+onMounted(async () => {
+  if (!bet.value) {
+    await betsStore.fetchBets()
+  }
+})
 
 </script>
 
@@ -155,6 +231,62 @@ const goBack = () => {
   transition: all 0.4s ease;
   z-index: 10;
   gap: 2rem;
+}
+
+.bet-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bet-description {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.bet-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.bet-stat {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 1rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.bet-stat.highlight {
+  border-color: rgba(249, 115, 22, 0.5);
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.bet-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bet-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bet-message {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bet-message.bet-error {
+  color: #f87171;
 }
 
 .matchesBets-container:hover {
@@ -287,6 +419,19 @@ const goBack = () => {
   transform: translateY(-3px) scale(1.05);
   box-shadow: 0 12px 40px rgba(249, 115, 22, 0.5);
   background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+}
+
+.button-bets:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+  transform: none;
+}
+
+.button-bets:disabled:hover {
+  transform: none;
+  box-shadow: none;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
 }
 
 
