@@ -1,11 +1,15 @@
 services:
   backend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: esportoracle-backend
     env_file:
       - .env
+    environment:
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL_CONTAINER:-http://host.docker.internal:8545}
     ports:
       - "8080:8080"
     restart: unless-stopped
