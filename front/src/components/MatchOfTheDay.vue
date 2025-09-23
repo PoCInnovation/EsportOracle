@@ -1,6 +1,6 @@
 <template>
     <div v-if="firstOpponent && secondOpponent" @click="openDetailsPopup">
-      <h1 class="page-title-card">Match du Jour</h1>
+      <h1 class="page-title-card">Match of the Day</h1>
     <Card class="tournament-card">
         <template #title>
             <div class="tournament-title">
