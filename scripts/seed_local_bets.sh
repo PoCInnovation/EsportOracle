@@ -35,6 +35,21 @@ export BETTOR2_PRIVATE_KEY=${BETTOR2_PRIVATE_KEY:-0x5de4111afa1a4b94908f83103eb1
 export BET_CONTRACT_ADDRESS
 export TOKEN_ADDRESS
 
+if [[ -z "${SEED_BETS_FILE:-}" ]]; then
+  DEFAULT_SEED_FILE="$ROOT_DIR/tmp/seed_bets.json"
+  FALLBACK_SEED_FILE="$ROOT_DIR/oracle/script/seed_data/sample_bets.json"
+
+  if [[ -f "$DEFAULT_SEED_FILE" ]]; then
+    export SEED_BETS_FILE="$DEFAULT_SEED_FILE"
+    echo "[info] using seed data from $SEED_BETS_FILE"
+  else
+    export SEED_BETS_FILE="$FALLBACK_SEED_FILE"
+    echo "[info] using default sample seed data ($SEED_BETS_FILE)"
+  fi
+else
+  echo "[info] using seed data from $SEED_BETS_FILE"
+fi
+
 forge script \
   --root "$ROOT_DIR/oracle" \
   --rpc-url "$ETHEREUM_RPC_URL" \
