@@ -175,6 +175,8 @@ func SetupRoutes() *mux.Router {
 	router.HandleFunc("/matches/current", GetCurrentMatches).Methods("GET")
 	router.HandleFunc("/matches/past", GetPastMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming", GetUpcomingMatches).Methods("GET")
+	router.HandleFunc("/matches/upcoming/{teamID}", GetUpcomingMatches).Methods("GET")
+	router.HandleFunc("/bets", GetAllBetsSimple).Methods("GET")
 	router.HandleFunc("/bets/history", GetAllBetsSimple).Methods("GET")
 	router.HandleFunc("/bets/history/{userAddress}", GetUserBetHistorySimple).Methods("GET")
 	return router

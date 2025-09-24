@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-const localhost = 'http://localhost:8080/matches/'
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const MATCHES_BASE_URL = `${API_BASE_URL}/matches/`
 
 export const matchStore = defineStore('match', () => {
     interface Match {
@@ -131,7 +132,7 @@ const getTeamInitials = (teamName: string): string => {
 }
     const retrieveMultiTeams = (teamId: string, status: string) => {
         const ArrayTeams = teamId
-        return `${localhost}${status}?teamId=${ArrayTeams}`
+        return `${MATCHES_BASE_URL}${status}?teamId=${ArrayTeams}`
     }
 
     const createUrlMatches = (status: 'upcoming' | 'current' | 'past', teamID: string | undefined): string => {
@@ -141,19 +142,19 @@ const getTeamInitials = (teamName: string): string => {
             if (teamID) {
                 Url = retrieveMultiTeams(teamID, status);
             } else {
-                Url = `${localhost}upcoming`
+                Url = `${MATCHES_BASE_URL}upcoming`
             }
         } else if (status === "current") {
             if (teamID) {
                 Url = retrieveMultiTeams(teamID, status);
             } else {
-                Url = `${localhost}current`
+                Url = `${MATCHES_BASE_URL}current`
             }
         } else {
             if (teamID) {
                 Url = retrieveMultiTeams(teamID, status);
             } else {
-                Url = `${localhost}past`
+                Url = `${MATCHES_BASE_URL}past`
             }
         }
         return Url;

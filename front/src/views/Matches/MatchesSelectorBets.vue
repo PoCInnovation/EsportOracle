@@ -12,14 +12,17 @@
             <div>
               <MatchOfTheDay  v-if="specificMatch" :match="specificMatch"/>
             </div>
-          <div  v-if="view" class="matches-grid">
+          <div class="matches-grid" v-if="!isLoading && !combinedError && matchesWithActiveBets.length">
             <MatchCard
-              v-for="match in ChoiceMatchType(view)"
+              v-for="match in matchesWithActiveBets"
               :key="match.id"
               :match="match"
               class="match-item"
             />
          </div>
+         <div v-else-if="combinedError" class="bets-feedback error">Une erreur est survenue lors du chargement des paris : {{ combinedError }}</div>
+         <div v-else-if="isLoading" class="bets-feedback">Chargement des paris...</div>
+         <div v-else class="bets-feedback">Aucun pari disponible pour cette catégorie pour le moment.</div>
         </div>
     </div>
 </template>
@@ -28,6 +31,7 @@
 import MatchOfTheDay from '@/components/MatchOfTheDay.vue';
 import MatchCard from '@/components/MatchCard.vue'
 import { matchStore } from '@/stores/matchStore';
+import { betStore } from '@/stores/betStore';
 
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
@@ -53,9 +57,10 @@ const viewMapper: Record<ViewType, ApiViewType> = {
 };
 
 const matchesStore = matchStore()
+const betsStore = betStore()
 
-
-const { matches } = storeToRefs(matchesStore)
+const { matches, currentMatches, upcomingMatches, loading: matchesLoading, error: matchesError } = storeToRefs(matchesStore)
+const { openBets, loading: betsLoading, error: betsError } = storeToRefs(betsStore)
 
 let Url = view.value === "current" || view.value === "upcoming" ? matchesStore.createUrlMatches(view.value, "") : null
 let autoRefreshInterval: NodeJS.Timeout | null = null
@@ -73,22 +78,25 @@ const navigation = [
   { name: 'History',  to: '/bets/history' },
 ]
 
-const ChoiceMatchType = (viewType: ViewType): typeof matchesStore.matches => {
-  switch (viewType) {
-    case "current":
-      return matchesStore.currentMatches
-    case "upcoming":
-      return matchesStore.upcomingMatches
-    case null:
-      console.log("Error null value")
-      return [];
-    default:
-      console.log(`We are out of ${viewType}`)
-      return [];
+const matchesFromView = computed(() => {
+  if (view.value === 'current') {
+    return currentMatches.value
   }
-}
+  if (view.value === 'upcoming') {
+    return upcomingMatches.value
+  }
+  return matches.value
+})
 
-//Sur le Home, mettre que des matchs qui ont des rank S, A, pas plus. Des matches avec de l'importance
+const activeMatchIds = computed(() => new Set(openBets.value.map(bet => Number(bet.bet.matchId))))
+
+const matchesWithActiveBets = computed(() => {
+  return matchesFromView.value.filter(match => activeMatchIds.value.has(Number(match.id)))
+})
+
+const isLoading = computed(() => matchesLoading.value || betsLoading.value)
+const combinedError = computed(() => matchesError.value || betsError.value)
+
 
 const startAutoRefresh = () => {
   if (autoRefreshInterval) {
@@ -96,11 +104,17 @@ const startAutoRefresh = () => {
   }
   
   autoRefreshInterval = setInterval(async () => {
-    if (!matchesStore.loading) {
-      if (view.value !=  null) {
+    if (!matchesLoading.value) {
+      if (view.value !=  null && Url) {
         await matchesStore.fetchMatches(Url, viewMapper[view.value])
+      } else {
+        const currentUrl = matchesStore.createUrlMatches('current', '')
+        const upcomingUrl = matchesStore.createUrlMatches('upcoming', '')
+        await matchesStore.fetchMatches(currentUrl, 'current')
+        await matchesStore.fetchMatches(upcomingUrl, 'upcoming')
       }
     }
+    await betsStore.refresh()
   }, 30000)
 }
 
@@ -115,11 +129,17 @@ const stopAutoRefresh = () => {
  * Component lifecycle - fetch matches on mount
  */
 onMounted(async () => {
-  if (view.value !=  null) {
+  if (view.value !=  null && Url) {
     await matchesStore.fetchMatches(Url, view.value)
+  } else {
+    const currentUrl = matchesStore.createUrlMatches('current', '')
+    const upcomingUrl = matchesStore.createUrlMatches('upcoming', '')
+    await matchesStore.fetchMatches(currentUrl, 'current')
+    await matchesStore.fetchMatches(upcomingUrl, 'upcoming')
   }
   
   // Set up auto-refresh every 30 seconds for live updates
+  await betsStore.fetchBets()
   startAutoRefresh()
 })
 
@@ -133,6 +153,7 @@ watch((view), async (newView) => {
     stopAutoRefresh()
 
     await matchesStore.fetchMatches(Url, newView)
+    await betsStore.refresh()
     startAutoRefresh()
   } else {
     console.log("Back to /home", newView)
@@ -187,6 +208,17 @@ watch((view), async (newView) => {
   animation: float-right 15s ease-in-out infinite;
   pointer-events: none;
   z-index: -1;
+}
+
+.bets-feedback {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  padding: 2rem 0;
+}
+
+.bets-feedback.error {
+  color: #f87171;
 }
 
 /* Responsive adjustments for floating elements */
