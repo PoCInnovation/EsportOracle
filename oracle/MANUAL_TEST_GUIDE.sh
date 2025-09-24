@@ -43,9 +43,9 @@ cast call $BET_CONTRACT_ADDRESS "getContractETHBalance()" --rpc-url $RPC_URL
 # Créer un pari
 echo "=== CRÉATION D'UN PARI ==="
 cast send $BET_CONTRACT_ADDRESS "createBet(string,uint256,uint256,uint256,uint256)" \
-    "Team Alpha vs Team Beta - Championship Final" \
-    111 \
-    222 \
+    "Team Liquid vs Team G2 Esports - Championship Final" \
+    136396 \
+    137372 \
     $(($(date +%s) + 3600)) \
     888 \
     --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
@@ -148,9 +148,9 @@ cast call $TOKEN_ADDRESS "balanceOf(address)" $BET_CONTRACT_ADDRESS --rpc-url $R
 # =====================================
 
 echo "=== RÉSUMÉ ==="
-echo "✅ Pari créé : Team Alpha (111) vs Team Beta (222)"
+echo "✅ Pari créé : Team Liquid(27786) vs Team G2 Esports (46037)"
 echo "✅ USER1 a parié 500 tokens sur Team Alpha"
 echo "✅ USER2 a parié 300 tokens sur Team Beta"
 echo "✅ Pool total : 800 tokens"
-echo "✅ Si Team Alpha gagne : USER1 récupère 800 tokens (gain de 300)"
-echo "✅ Si Team Beta gagne : USER2 récupère 800 tokens (gain de 500)"
+echo "✅ Si Team Liquid gagne : USER1 récupère 800 tokens (gain de 300)"
+echo "✅ Si Team G2 Esports gagne : USER2 récupère 800 tokens (gain de 500)"

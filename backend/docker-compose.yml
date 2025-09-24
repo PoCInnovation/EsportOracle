@@ -1,0 +1,28 @@
+
+services:
+  backend:
+    init: true
+    stop_signal: SIGINT
+    stop_grace_period: 5s
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: esport-backend:dev
+    container_name: esport-backend
+    ports:
+      - "${PORT_HOST:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      ETHEREUM_RPC_URL: "${ETHEREUM_RPC_URL:-http://host.docker.internal:8545}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: anvil
+    command: anvil -p 8545 --host 0.0.0.0
+    ports:
+      - "8545:8545"
+    profiles: ["chain"]
+    restart: unless-stopped

@@ -3,8 +3,6 @@ import { computed, ref } from "vue";
 
 const localhost = 'http://localhost:8080/matches/'
 
-//Rajouter un champ: raw_url  pour que quand on clique, cela redirige vers l'URL du match.
-
 export const matchStore = defineStore('match', () => {
     interface Match {
         id: number
@@ -167,7 +165,7 @@ const getTeamInitials = (teamName: string): string => {
             currentAbortController.abort()
         }
         if (Url === null) {
-            console.log(`Sur Home pour l'instant`)
+            console.log(`Home`)
             return
         }
 

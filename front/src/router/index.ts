@@ -8,7 +8,7 @@ import Profil from '@/views/ProfilClient.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import MatchesBetsTeams from '@/views/Matches/MatchesBetsTeams.vue'
 import MatchesSelectorBets from '@/views/Matches/MatchesSelectorBets.vue'
-import MatchesHistoryBets from '@/views/Matches/MatchesHistoryBets.vue'
+import MatchesHistoryBets from '@/views/HistoryBets.vue'
 import { matchStore } from '@/stores/matchStore'
 
 const mapView = (v?: string) =>
@@ -49,8 +49,8 @@ const routes = [
       console.log("Succesfully fetched matches");
       return true
     }, meta: { view: 'upcoming' } },
-
-  { path: '/bets/history',  name: 'BetsHistory',  component: MatchesHistoryBets, meta: { view: 'history' } },
+  { path: '/bets/history',  name: 'BetsHistory',  component: MatchesHistoryBets, props: true },
+  { path: '/bets/history/:id',  name: 'BetsHistoryUserId',  component: MatchesHistoryBets, props: true },
 
 
   {path: '/bets/current/:id(\\d+)', name: 'MatchesCurrentBets', component: MatchesBetsTeams, props: true},
@@ -58,10 +58,6 @@ const routes = [
   
 ]
 
-/**
- * Pour la route Bets -> format : /bets/current/id (du match)
- * Pour upcoming: /bets/upcoming/id (du match)
- */
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,

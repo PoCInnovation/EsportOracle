@@ -501,7 +501,7 @@ defineExpose({
 </script>
 
 <style scoped>
-@import "./button.css";
+@import "../styles/button.css";
 
 .walletSection {
   display: flex;

@@ -31,7 +31,7 @@ import { matchStore } from '@/stores/matchStore';
 
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 
 const route = useRoute();
 
@@ -62,7 +62,7 @@ let autoRefreshInterval: NodeJS.Timeout | null = null
 
 const specificMatch = computed(() => {
   return matches.value.filter(match =>
-  ["s"].includes(match.tournament?.tier ?? "")
+  ["s", "a"].includes(match.tournament?.tier ?? "")
   )[0] ?? null;
 })
 
@@ -89,7 +89,6 @@ const ChoiceMatchType = (viewType: ViewType): typeof matchesStore.matches => {
 }
 
 //Sur le Home, mettre que des matchs qui ont des rank S, A, pas plus. Des matches avec de l'importance
-
 
 const startAutoRefresh = () => {
   if (autoRefreshInterval) {
@@ -119,7 +118,6 @@ onMounted(async () => {
   if (view.value !=  null) {
     await matchesStore.fetchMatches(Url, view.value)
   }
-  console.log(`LE URL == ${Url}`)
   
   // Set up auto-refresh every 30 seconds for live updates
   startAutoRefresh()
@@ -130,16 +128,14 @@ onUnmounted(() => {
 })
 
 watch((view), async (newView) => {
-  console.log('[watch] fetching matches for', newView)
   if (newView === "current" || newView === "upcoming") {
     Url = matchesStore.createUrlMatches(newView, "")
-    console.log(`Voir le nouveau View == ${newView}`)
     stopAutoRefresh()
 
     await matchesStore.fetchMatches(Url, newView)
     startAutoRefresh()
   } else {
-    console.log("/home => ", newView)
+    console.log("Back to /home", newView)
   }
 })
 
@@ -147,84 +143,8 @@ watch((view), async (newView) => {
 
 <style lang="css" scoped>
 
-@import "../../components/matches.css";
-
-/** NavBar */
-
-.nav-desktop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 1.5rem 1.5rem;
-  background: rgba(26, 26, 26, 0.85);
-  border: 1px solid rgba(249, 115, 22, 0.3);
-  border-radius: 2rem;
-  backdrop-filter: blur(25px);
-  max-width: 1000px;
-  margin: 0 auto 1.5rem;
-  box-shadow: 
-    0 8px 32px rgba(249, 115, 22, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.4s ease;
-  z-index: 10;
-}
-
-.nav-desktop:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 12px 40px rgba(249, 115, 22, 0.2),
-    0 0 0 1px rgba(249, 115, 22, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-.nav-desktop::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, transparent 50%, rgba(251, 146, 60, 0.08) 100%);
-  pointer-events: none;
-}
-
-.nav-desktop::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(from 0deg, transparent, rgba(249, 115, 22, 0.1), transparent);
-  animation: rotate-slow 20s linear infinite;
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-.nav-desktop a {
-  text-decoration: none;
-  color: inherit;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 1.5rem;
-  font-weight: 800;
-  margin: 0;
-  background: linear-gradient(135deg, #f97316, #fb923c, #fbbf24);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  position: relative;
-  z-index: 2;
-  animation: glow-text 3s ease-in-out infinite alternate;
-}
+@import "../../styles/matches.css";
+@import "../../styles/navbar.css";
 
 /** Container center */
 

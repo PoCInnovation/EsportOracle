@@ -173,8 +173,8 @@ defineExpose({
 
 <style scoped>
 
-@import "../components/matches.css";
-@import "../components/team.css";
+@import "../styles/matches.css";
+@import "../styles/team.css";
 
 
 /* ----- Card externe (Tournoi) ----- */

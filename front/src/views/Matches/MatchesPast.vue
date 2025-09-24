@@ -194,5 +194,5 @@ watch(() => route.params.teamId, async (newTeamId) => {
 
 <style scoped>
 
-@import "../../components/matches.css";
+@import "../../styles/matches.css";
 </style>

@@ -2,9 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { createWalletClient, createPublicClient, custom, formatEther } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
-import { useWalletStore } from './stores/useWalletStore'
+import "./styles/multiselect-custom.css"
 
-const walletStore = useWalletStore()
 
 // Types TypeScript
 interface Wallet {
@@ -20,7 +19,7 @@ const navigation = [
   { name: 'Live Matches', href: '/matches/current', icon: '🔴' },
   { name: 'Upcoming Matches', href: '/matches/upcoming', icon: '⏰' },
   { name: 'Past Matches', href: '/matches/past', icon: '📚' },
-  { name: 'Bets', href: '/bets', icon: '💸'}
+  { name: 'Bets', href: '/bets', icon: '💸'},
 ]
 
 const mobileMenuOpen = ref(false)

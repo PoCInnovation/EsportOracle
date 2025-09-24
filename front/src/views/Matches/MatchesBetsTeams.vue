@@ -113,7 +113,7 @@ const goBack = () => {
 
 <style scoped>
 
-@import "../../components/matches.css";
+@import "../../styles/matches.css";
 
 .page-Backtitle {
   display: flex;

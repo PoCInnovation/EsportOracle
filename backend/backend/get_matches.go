@@ -15,6 +15,12 @@ func init() {
 	_ = godotenv.Load()
 	PandaScoreAPIToken = os.Getenv("PANDASCORE_API_TOKEN")
 	
+	if PandaScoreAPIToken == "" {
+    	fmt.Println("PANDASCORE_API_TOKEN is NOT set")
+	} else {
+    	fmt.Printf("PANDASCORE_API_TOKEN is set (len=%d)\n", len(PandaScoreAPIToken))
+	}
+	
 	// Also load blockchain-related env vars for bet contract
 	ethereumRPCURL = os.Getenv("ETHEREUM_RPC_URL")
 	betContractAddress = os.Getenv("BET_CONTRACT_ADDRESS")
@@ -34,6 +40,7 @@ var betContractAddress string
 func SendResponseClient(w http.ResponseWriter, req *http.Request) {
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		fmt.Printf("[UPSTREAM ERR] %v\n", err)
 		http.Error(w, fmt.Sprintf("http.DefaultClient.Do(req): %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -162,12 +169,12 @@ func GetUpcomingMatches(w http.ResponseWriter, r *http.Request) {
 // SetupRoutes registers the REST API endpoints and returns a mux.Router.
 func SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
+	fmt.Println("backend.SetupRoutes called")
 	router.HandleFunc("/MatchByID/{matchID}", GetMatchByID).Methods("GET")
 	//router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
 	router.HandleFunc("/matches/current", GetCurrentMatches).Methods("GET")
 	router.HandleFunc("/matches/past", GetPastMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming", GetUpcomingMatches).Methods("GET")
-	router.HandleFunc("/matches/upcoming/{teamID}", GetUpcomingMatches).Methods("GET")
 	router.HandleFunc("/bets/history", GetAllBetsSimple).Methods("GET")
 	router.HandleFunc("/bets/history/{userAddress}", GetUserBetHistorySimple).Methods("GET")
 	return router

@@ -66,6 +66,7 @@
 }
 
 .team-logo {
+  content: none !important;
   width: 80%;
   height: 80%;
   object-fit: cover;

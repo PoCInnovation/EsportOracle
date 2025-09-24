@@ -74,9 +74,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
 
 import MatchDetailsPopup from './MatchDetailsPopup.vue'
 defineOptions({ inheritAttrs: false })
@@ -181,7 +179,7 @@ defineExpose({
 
 <style scoped>
 
-@import "../../src/components/team.css";
+@import "../styles/team.css";
 
 .match-bet {
   display: flex;
@@ -224,7 +222,7 @@ defineExpose({
 
 .match-buttonBet:hover {
   background:  #f97316;
-   transform: scale(1.05);
+  transform: scale(1.05);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(15px);
 }
