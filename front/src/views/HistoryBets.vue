@@ -1,15 +1,29 @@
-
 <template>
     <div>
-        <nav class="nav-desktop" :class="{ 'history-nav': isHistoryPage }">
-            <router-link
-            v-for="item in navigation"
-            :key="item.name"
-            :to="item.to">
-            <span class="page-title">{{ item.name }}</span>
-            </router-link>
+        <nav class="nav-desktop" :class="{ 'history-nav': isHistoryPage, 'historyUser-nav': !isHistoryPage }">
+            <RouterLink class="page-title" :to="{ name: 'BetsHistory' }">All</RouterLink>
+            <RouterLink
+                class="page-title"
+                :key="userLinkKey"
+                :to="userLink"
+                @click="handleUserClick"
+            >
+                User
+            </RouterLink>
         </nav>
-        <div class="betHistory-grid">
+
+        <div v-if="betsVM.length === 0 && !loading" class="no-bets-message">
+            <span class="no-bets-icon">📭</span>
+            <h3>No Bets</h3>
+            <p>{{ isHistoryPage ? 'No bets have been placed yet.' : 'You have not placed any bets yet.' }}</p>
+        </div>
+
+        <div v-if="route.query.error === 'wallet_required'" class="connect-warning">
+            <span class="warning-icon">⚠️</span>
+            <p>You must connect your wallet to access your bets.</p>
+        </div>
+
+        <div v-else class="betHistory-grid">
             <BetHistoryCard
                 v-for="b in betsVM"
                 :key="b.id"
@@ -19,15 +33,65 @@
     </div>
 </template>
 
-
 <script setup lang="ts">
+
 import BetHistoryCard from '@/components/BetHistoryCard.vue'
 import { formatEther } from 'viem'
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
+const router = useRouter()
 const route = useRoute()
 const isHistoryPage = route.name === 'BetsHistory'
+
+const props = withDefaults(defineProps<{
+  ethAddress?: string
+  ethIsConnected?: boolean
+}>(), {
+  ethAddress: '',
+  ethIsConnected: false
+})
+
+const accountWallet = computed(() => props.ethAddress)
+
+console.log("Pour voir === ", props.ethIsConnected)
+
+
+const userClicked = ref(false)
+
+const userLink = computed(() => {
+  return accountWallet.value
+    ? { name: 'BetsHistoryUserId', params: { id: accountWallet.value } }
+    : { name: 'BetsHistory' }
+})
+
+const userLinkKey = computed(() =>
+  accountWallet.value ? `user-${accountWallet.value}` : 'all'
+)
+
+const handleUserClick = (event: Event) => {
+  
+  
+  event.preventDefault()
+
+  if (!accountWallet.value || !props.ethIsConnected) {
+    router.replace({
+      name: 'BetsHistory',
+      query: { error: 'wallet_required' }
+    })
+    return
+  }
+
+  userClicked.value = true
+  router.replace({ 
+    name: 'BetsHistoryUserId', 
+    params: { id: accountWallet.value } 
+  })
+}
+
+console.log(`ACCOUNT ===${accountWallet.value}`)
+
+console.log(`USERLINK ===${userLink.value.params}`)
 
 function asString(x: string | string[] | null | undefined): string {
   return Array.isArray(x) ? (x[0] ?? '') : (x ?? '')
@@ -44,14 +108,11 @@ const HistoryType = ref<'all' | 'user'>('all');
 let autoRefreshInterval: NodeJS.Timeout | null = null
 let currentAbortController: AbortController | null = null
 
-const navigation = [
-  { name: 'All', to: '/bets/history' },
-  { name: 'User',  to: '/bets/history' }
-]
+const routeUser = computed(() => `/bets/history/${accountWallet.value}`)
 
-
+console.log(`La routeUser ===${routeUser.value}`)
 const bets = ref<BetHistory[]>([])
-console.log('history is', bets.value, Array.isArray(bets.value))
+
 const betsVM = computed<BetHistoryVM[]>(() =>
     (bets.value ?? []).map(mapToBetVM)
 )
@@ -207,6 +268,7 @@ onUnmounted(() => {
     stopAutoRefresh()
 })
 
+// Watch pour fetch les données quand la route change
 watch(userId, async (id) => {
     if (id) {
         HistoryType.value = "user"
@@ -220,21 +282,6 @@ watch(userId, async (id) => {
     startAutoRefresh()
 }, {immediate: true})
 
-/*watch(
-  () => route.fullPath,
-   async (newPath) => {
-    if (newPath) {
-        HistoryType.value = "user"
-        await fetchHistory()
-    } else {
-        HistoryType.value = "all"
-        await fetchHistory()
-    }
-    startAutoRefresh()
-  },
-  { immediate: true }
-)*/
-
 </script>
 
 <style lang="css" scoped>
@@ -246,6 +293,132 @@ watch(userId, async (id) => {
     grid-template-columns: repeat(auto-fill);
     gap: 12px;
     align-items: start;
+}
+
+.connect-warning {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    margin: 1rem 0;
+    max-width: 1000px;
+    margin: 0 auto 1.5rem;
+    background: rgba(249, 115, 22, 0.1);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 12px;
+    color: #fb923c;
+}
+
+.warning-icon {
+    font-size: 1.5rem;
+}
+
+.connect-warning p {
+    margin: 0;
+    font-weight: 500;
+}
+
+.no-bets-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  margin: 2rem auto;
+  max-width: 500px;
+  background: rgba(26, 26, 26, 0.6);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 16px;
+  text-align: center;
+  position: relative;
+}
+
+.no-bets-message:hover {
+  transform: translateY(-12px) scale(1.03);
+  box-shadow: 
+    0 10px 20px rgba(249, 115, 22, 0.1),
+    0 0 0 1px rgba(249, 115, 22, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: #fb923c64;
+}
+
+.no-bets-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, transparent 50%, rgba(251, 146, 60, 0.08) 100%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.no-bets-message::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, transparent, rgba(249, 115, 22, 0.1), transparent);
+  animation: rotate-slow 25s linear infinite;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.no-bets-message:hover::before {
+  opacity: 1;
+}
+
+.no-bets-message:hover::after {
+  opacity: 0.3;
+}
+
+.no-bets-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+}
+
+.no-bets-message h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f97316;
+  margin: 0 0 0.5rem 0;
+}
+
+.no-bets-message p {
+  color: #9ca3af;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.loading-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.loading-spinner {
+  font-size: 3rem;
+  animation: spin 2s linear infinite;
+}
+
+.loading-message p {
+  color: #9ca3af;
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 </style>

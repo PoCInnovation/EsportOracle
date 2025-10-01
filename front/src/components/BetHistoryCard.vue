@@ -69,8 +69,23 @@
         <div class="betHistory-description">
           {{ props.bet.description }}
         </div>
-        <div class="betHistory-creator">
+        <div class="betHistory-creator" v-if="!hasUserBet">
            {{ truncateAddress(props.bet.creator) }}
+        </div>
+        <div v-if="hasUserBet" class="betHistory-user">
+            <div class="userbet-head">
+              <span class="chip">Your Bet:</span>
+              <span class="status" :class="userBetStatus.kind">{{ userBetStatus.label }}</span>
+            </div>
+            <div class="userbet-row">
+            <div class="label">Team</div>
+            <div class="value">{{ chosenTeamName }}</div>
+          </div>
+
+          <div class="userbet-row">
+            <div class="label">Amount</div>
+            <div class="value strong">{{ userAmountLabel }}</div>
+          </div>
         </div>
       </template>
     </Card>
@@ -90,6 +105,8 @@ const props = defineProps<{
 const failedImages = ref<Set<string>>(new Set());
 
 const isOpen = computed(() => Date.now() < props.bet.deadline.getTime())
+const hasUserBet = computed(() => !!props.bet.user)
+
 const datePart = computed(() =>
   new Intl.DateTimeFormat('fr-FR', {month: 'long',day: 'numeric'}).format(props.bet.deadline)
 )
@@ -116,6 +133,37 @@ const Pool1ETH = computed(() => props.bet.team1PoolEth.toString())
 const Pool2ETH = computed(() => props.bet.team2PoolEth.toString())
 
 const NumberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3})
+
+
+const userAmountEth = computed(() => {
+  const w = props.bet.user?.amountEth ?? '0'
+  try { return Number(Number(w)) } catch { return 0 }
+})
+const userAmountLabel = computed(() =>
+  new Intl.NumberFormat('fr-FR',{ maximumFractionDigits: 4 })
+    .format(userAmountEth.value) + ' ETH'
+)
+
+const chosenTeamName = computed(() =>
+  props.bet.user?.teamChosen === 1 ? (props.bet.team1Name ?? `Team #${props.bet.team1Id}`)
+                                      : (props.bet.team2Name ?? `Team #${props.bet.team2Id}`)
+)
+
+const userBetStatus = computed(() => {
+  const ub = props.bet.user
+  if (!ub) return { label:'Aucun pari', kind:'none' as const }
+
+  if (!props.bet.resolved) return { label:'En cours', kind:'pending' as const }
+
+  if (props.bet.winningTeam === 0) return { label:'Remboursé', kind:'refunded' as const }
+
+  const won = (props.bet.winningTeam === ub.teamChosen)
+  if (won && !ub.claimed) return { label:'Gagné — à réclamer', kind:'won-unclaimed' as const }
+  if (won && ub.claimed)  return { label:'Gagné — réclamé',   kind:'won' as const }
+  return { label:'Perdu', kind:'lost' as const }
+})
+
+
 const t1EthLabel = computed(() => NumberFormat.format(Number(Pool1ETH.value)) + " ETH")
 const t2EthLabel = computed(() => NumberFormat.format(Number(Pool2ETH.value)) + " ETH")
 
@@ -150,7 +198,7 @@ const handleImageLoad = (event: Event) => {
 
 .bet-card {
   max-width: 640px;
-  max-height: 400px;
+  max-height: auto;
   margin: 13px auto;
   padding: 12px;
   background: rgba(26, 26, 26, 0.85);
@@ -427,6 +475,79 @@ const handleImageLoad = (event: Event) => {
   -webkit-text-fill-color: #9ca3af; 
   font-size: 0.80rem;
 }
+
+.betHistory-user {
+  margin-top: .75rem;
+  padding: .75rem;
+  border-radius: .75rem;
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(249,115,22,.15);
+  display: flex; 
+  flex-direction: column;
+  gap:.5rem;
+}
+
+.userbet-head {
+  display:flex; 
+  justify-content:space-between; 
+  align-items:center;
+}
+
+.chip {
+  font-size:.75rem; 
+  font-weight:700;
+  padding:.15rem .5rem; 
+  border-radius:999px;
+  background: linear-gradient(135deg,#1f2937,#111827);
+  color:#e5e7eb;
+}
+
+.status{ 
+  font-size:.8rem; 
+  font-weight:700; 
+}
+
+.status.pending   { 
+  background: linear-gradient(135deg,#60a5fa,#3b82f6);
+  -webkit-background-clip:text; background-clip:text; 
+  -webkit-text-fill-color:transparent; 
+}
+
+.status.lost      { 
+  background: linear-gradient(135deg,#f87171,#ef4444); 
+  -webkit-background-clip:text; 
+  background-clip:text; 
+  -webkit-text-fill-color:transparent; 
+}
+.status.refunded  { 
+  background: linear-gradient(135deg,#fbbf24,#d97706); 
+  -webkit-background-clip:text; 
+  background-clip:text; 
+  -webkit-text-fill-color:transparent; 
+}
+
+.userbet-row{ 
+  display:flex; 
+  justify-content:space-between; 
+  font-size:.9rem; 
+}
+
+.userbet-row .label { 
+  color:#9ca3af; 
+}
+
+.userbet-row .value.strong{ 
+  font-weight:700;
+}
+
+.claim-btn{
+  margin-top:.25rem;
+  border-radius:.6rem;
+  background: linear-gradient(135deg,#34d399,#10b981) !important;
+  color:#fff !important;
+  font-weight:800;
+}
+
 
 .betHistory-deadline {
   margin: 0 1.5rem;

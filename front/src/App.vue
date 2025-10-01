@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { createWalletClient, createPublicClient, custom, formatEther } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
+import { useWalletStore } from './stores/useWalletStore'
 import "./styles/multiselect-custom.css"
+import { useRoute } from 'vue-router'
 
+const wallet = useWalletStore()
 
 // Types TypeScript
 interface Wallet {
@@ -22,6 +25,9 @@ const navigation = [
   { name: 'Bets', href: '/bets', icon: '💸'},
 ]
 
+const address = ref<string>('')
+const ready = ref(false)        
+const route = useRoute()
 const mobileMenuOpen = ref(false)
 const showWalletModal = ref(false)
 const isConnecting = ref(false)
@@ -30,6 +36,9 @@ const isConnected = ref(false)
 const connectedAccount = ref('')
 const walletBalance = ref('')
 const availableWallets = ref<Wallet[]>([])
+
+const viewKey = computed(() => `${route.fullPath}|${address.value}`)
+
 
 // Extended Window interface to include ethereum with providers
 declare global {
@@ -165,7 +174,9 @@ const disconnectWallet = () => {
   isConnected.value = false
   connectedAccount.value = ''
   walletBalance.value = ''
+  address.value = ''
   clearSavedWalletConnection()
+  localStorage.setItem('wallet.manually_disconnected', 'true')
   console.log('Wallet disconnected')
 }
 
@@ -232,6 +243,8 @@ const connectWithProvider = async (wallet: Wallet) => {
       
       // Mark as connected
       isConnected.value = true
+
+      localStorage.removeItem('wallet.manually_disconnected')
       
       // Save connection for auto-reconnect
       saveWalletConnection(account, wallet.name)
@@ -341,6 +354,41 @@ const tryAutoReconnect = async () => {
   }
 }
 
+async function initWallet() {
+  const eth = (window as any)?.ethereum
+  if (eth?.request) {
+    try {
+      const manuallyDisconnected = localStorage.getItem('wallet.manually_disconnected')
+      const accs = await eth.request({ method: 'eth_accounts' }) as string[]
+      if (accs?.[0] && !manuallyDisconnected) {
+        address.value = accs[0]
+        localStorage.setItem('wallet.address', accs[0])
+        connectedAccount.value = accs[0]
+        isConnected.value = true
+        console.log('✅ Wallet connected:', accs[0], 'isConnected:', isConnected.value)
+      }
+
+      eth.on?.('accountsChanged', (accs: string[]) => {
+        address.value = accs?.[0] || ''
+        if (accs?.[0]) {
+          localStorage.removeItem('wallet.manually_disconnected')
+          connectedAccount.value = accs[0]
+          isConnected.value = true
+          localStorage.setItem('wallet.address', address.value)
+        } else {
+          isConnected.value = false
+          connectedAccount.value = ''
+        }
+      })
+    } catch (e) {
+      console.error('wallet init error', e)
+    }
+  }
+  ready.value = true
+}
+
+onMounted(initWallet)
+
 // Component initialization on mount
 onMounted(async () => {
   await tryAutoReconnect()
@@ -436,7 +484,8 @@ onMounted(async () => {
     <main class="main">
       <RouterView v-slot="{ Component }">
         <Transition name="page" mode="out-in">
-          <component :is="Component"/>
+          <component v-if="ready" :is="Component" :ethAddress="address" :ethIsConnected="isConnected" :key="viewKey" />
+          <div v-else class="app-splash"></div>
         </Transition>
       </RouterView>
     </main>
@@ -517,6 +566,7 @@ onMounted(async () => {
       </div>
     </footer>
   </div>
+
 </template>
 
 
