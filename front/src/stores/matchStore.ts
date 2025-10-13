@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-const localhost = 'http://localhost:8080/matches/'
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const MATCHES_BASE_URL = `${API_BASE_URL}/matches/`
 
 export const matchStore = defineStore('match', () => {
     interface Match {
@@ -26,13 +27,23 @@ export const matchStore = defineStore('match', () => {
         }
         tournament?: {
             name: string
+            tier: 's'|'a'|'b'|'c'|'d'|'unranked'
         }
     }
 
+    type TAcronymId = {
+        id: number,
+        name: string,
+        acronym: string
+    }
+
+
     // État séparé pour chaque type de match
+    const AcronymIdTeams = ref<TAcronymId[]>([])
     const upcomingMatches = ref<Match[]>([])
     const currentMatches = ref<Match[]>([])
     const pastMatches = ref<Match[]>([])
+    const failedImages = ref<Set<string>>(new Set())
     
     const loading = ref(false)
     const error = ref<string>('')
@@ -68,35 +79,95 @@ export const matchStore = defineStore('match', () => {
     return (id: number) => matches.value.find(match => match.id === id)
   })
 
-   const createUrlMatches = (status: 'upcoming' | 'current' | 'past', teamID: string | undefined): string => {
-    let Url: string;
+  const getTeamImageUrl = (opponent: any): string | null => {
+    if (!opponent) return null;
+    if (!opponent.image_url) return null;
 
-    if (status === "upcoming") {
-        if (teamID) {
-            Url = `${localhost}upcoming/${teamID}`
-        } else {
-            Url = `${localhost}upcoming`
-        }
-    } else if (status === "current") {
-        if (teamID) {
-            Url = `${localhost}current/${teamID}`
-        } else {
-            Url = `${localhost}current`
-        }
-    } else {
-        if (teamID) {
-            Url = `${localhost}past/${teamID}`
-        } else {
-            Url = `${localhost}past`
-        }
+    const url = opponent.image_url.trim()
+    if (!url || url === 'null'  || url === 'undefined' || failedImages.value.has(url)) return null
+    try { new URL(url); return url } catch { return null }
+}
+
+    const retriveMatchesByRank = (tier: string): number[] => {
+        return matches.value
+        .filter(m => m.tournament?.tier?.toLowerCase() === tier.toLowerCase())
+        .map(m => m.id)
     }
-    return Url;
+
+    const specificMatch = (tiers: string[]) => {
+        return matches.value.filter(match =>
+        tiers.includes(match.tournament?.tier ?? "")
+        );
+    }
+
+const getTeamInitials = (teamName: string): string => {
+  if (!teamName) return '?'
+  return teamName.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 3)
+}
+
+   const retrieveIdAndNamesTeams = (matches: Match[]) => {
+    const teamsMap = new Map<number, TAcronymId>()
+    
+    matches.forEach(match => {
+        match.opponents?.forEach(team => {
+            if (team.opponent && team.opponent.id) {
+                if (!teamsMap.has(team.opponent.id)) {
+                    teamsMap.set(team.opponent.id, {
+                        id: team.opponent.id,
+                        name: team.opponent.name,
+                        acronym: team.opponent.acronym || 'N/A'
+                    })
+                }
+            }
+        })
+    })
+
+    const result = Array.from(teamsMap.values())
+    if (AcronymIdTeams.value.length !== 0) {
+        AcronymIdTeams.value.splice(0);
+    }
+    AcronymIdTeams.value.push(...result)
+
+    console.log("Successfully fetch Name and Id Teams");
+}
+    const retrieveMultiTeams = (teamId: string, status: string) => {
+        const ArrayTeams = teamId
+        return `${MATCHES_BASE_URL}${status}?teamId=${ArrayTeams}`
+    }
+
+    const createUrlMatches = (status: 'upcoming' | 'current' | 'past', teamID: string | undefined): string => {
+        let Url: string = "";
+
+        if (status === "upcoming") {
+            if (teamID) {
+                Url = retrieveMultiTeams(teamID, status);
+            } else {
+                Url = `${MATCHES_BASE_URL}upcoming`
+            }
+        } else if (status === "current") {
+            if (teamID) {
+                Url = retrieveMultiTeams(teamID, status);
+            } else {
+                Url = `${MATCHES_BASE_URL}current`
+            }
+        } else {
+            if (teamID) {
+                Url = retrieveMultiTeams(teamID, status);
+            } else {
+                Url = `${MATCHES_BASE_URL}past`
+            }
+        }
+        return Url;
    }
 
-   const fetchMatches = async (Url: string, matchType: 'upcoming' | 'current' | 'past'): Promise<void> => {
+   const fetchMatches = async (Url: string | null, matchType: 'upcoming' | 'current' | 'past'): Promise<void> => {
     try {
         if (currentAbortController) {
             currentAbortController.abort()
+        }
+        if (Url === null) {
+            console.log(`Home`)
+            return
         }
 
         currentAbortController = new AbortController()
@@ -125,7 +196,7 @@ export const matchStore = defineStore('match', () => {
       const statusPriority = { 'running': 0, 'live': 0, 'not_started': 1, 'upcoming': 1, 'finished': 2 }
       const aPriority = statusPriority[a.status?.toLowerCase() as keyof typeof statusPriority] ?? 3
       const bPriority = statusPriority[b.status?.toLowerCase() as keyof typeof statusPriority] ?? 3
-      
+
       return aPriority - bPriority
     })
 
@@ -156,6 +227,7 @@ export const matchStore = defineStore('match', () => {
    return {
      // État
         matches,
+        AcronymIdTeams,
         upcomingMatches,
         currentMatches,
         pastMatches,
@@ -167,6 +239,12 @@ export const matchStore = defineStore('match', () => {
         getMatchById,
         createUrlMatches,
         fetchMatches,
+        retrieveIdAndNamesTeams,
+        retrieveMultiTeams,
+        getTeamImageUrl,
+        getTeamInitials,
         lastUpdated,
+        retriveMatchesByRank,
+        specificMatch
    }
 })

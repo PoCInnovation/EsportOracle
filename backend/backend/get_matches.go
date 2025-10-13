@@ -11,19 +11,36 @@ import (
 )
 
 func init() {
-	err := godotenv.Load()
-	if err != nil {
-		panic("Error loading .env file")
-	}
+	// Try loading .env when developing; ignore if not present (prod uses env vars)
+	_ = godotenv.Load()
 	PandaScoreAPIToken = os.Getenv("PANDASCORE_API_TOKEN")
+	
+	if PandaScoreAPIToken == "" {
+    	fmt.Println("PANDASCORE_API_TOKEN is NOT set")
+	} else {
+    	fmt.Printf("PANDASCORE_API_TOKEN is set (len=%d)\n", len(PandaScoreAPIToken))
+	}
+	
+	// Also load blockchain-related env vars for bet contract
+	ethereumRPCURL = os.Getenv("ETHEREUM_RPC_URL")
+	betContractAddress = os.Getenv("BET_CONTRACT_ADDRESS")
+	
+	// Debug output
+	fmt.Printf("Loaded ETHEREUM_RPC_URL: %s\n", ethereumRPCURL)
+	fmt.Printf("Loaded BET_CONTRACT_ADDRESS: %s\n", betContractAddress)
 }
 
-var BaseURL = "https://api.pandascore.co"
+var BaseURL = "https://api.pandascore.co/csgo"
 var PandaScoreAPIToken string
+
+// Blockchain configuration variables (shared with bet_contract.go)
+var ethereumRPCURL string
+var betContractAddress string
 
 func SendResponseClient(w http.ResponseWriter, req *http.Request) {
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		fmt.Printf("[UPSTREAM ERR] %v\n", err)
 		http.Error(w, fmt.Sprintf("http.DefaultClient.Do(req): %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -78,12 +95,12 @@ func GetMatchByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetCurrentMatches(w http.ResponseWriter, r *http.Request) {
-	matchID := mux.Vars(r)["teamID"]
+	teamIDs := r.URL.Query().Get("teamId")
 
 	var url string;
 
-	if (matchID != "") {
-		url = fmt.Sprintf("%s/teams/%s/matches/running", BaseURL, matchID)
+	if (teamIDs != "") {
+		url = fmt.Sprintf("%s/matches/running?filter[opponent_id]=%s", BaseURL, teamIDs)
 	} else {
 		url = fmt.Sprintf("%s/matches/running", BaseURL)
 	}
@@ -102,12 +119,12 @@ func GetCurrentMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetPastMatches(w http.ResponseWriter, r *http.Request) {
-	matchID := mux.Vars(r)["teamID"]
+	teamIDs := r.URL.Query().Get("teamId")
 
 	var url string;
 
-	if (matchID != "") {
-		url = fmt.Sprintf("%s/teams/%s/matches?filter[status]=finished&sort=-begin_at&per_page=50&page=1", BaseURL, matchID) //verifier les endpoints.
+	if (teamIDs != "") {
+		url = fmt.Sprintf("%s/matches/?filter[status]=finished&filter[opponent_id]=%s&sort=-begin_at&per_page=50&page=1", BaseURL, teamIDs)
 	} else {
 		url = fmt.Sprintf("%s/matches?filter[status]=finished&sort=-begin_at&per_page=50&page=1", BaseURL)
 	}
@@ -126,12 +143,12 @@ func GetPastMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUpcomingMatches(w http.ResponseWriter, r *http.Request) {
-	matchID := mux.Vars(r)["teamID"]
+	teamIDs := r.URL.Query().Get("teamId")
 
 	var url string;
 
-	if (matchID != "") {
-		url = fmt.Sprintf("%s/teams/%s/matches?filter[status]=not_started&sort=begin_at&per_page=50&page=1", BaseURL, matchID)
+	if (teamIDs != "") {
+		url = fmt.Sprintf("%s/matches/?filter[status]=not_started&filter[opponent_id]=%s&sort=begin_at&per_page=50&page=1", BaseURL, teamIDs)
 	} else {
 		url = fmt.Sprintf("%s/matches?filter[status]=not_started&sort=begin_at&per_page=50&page=1", BaseURL)
 	}
@@ -152,13 +169,15 @@ func GetUpcomingMatches(w http.ResponseWriter, r *http.Request) {
 // SetupRoutes registers the REST API endpoints and returns a mux.Router.
 func SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
+	fmt.Println("backend.SetupRoutes called")
 	router.HandleFunc("/MatchByID/{matchID}", GetMatchByID).Methods("GET")
-	router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
+	//router.HandleFunc("/TeamFromID/{teamID}", GetTeamFromID).Methods("GET")
 	router.HandleFunc("/matches/current", GetCurrentMatches).Methods("GET")
-	router.HandleFunc("/matches/current/{teamID}", GetCurrentMatches).Methods("GET")
 	router.HandleFunc("/matches/past", GetPastMatches).Methods("GET")
-	router.HandleFunc("/matches/past/{teamID}", GetPastMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming", GetUpcomingMatches).Methods("GET")
 	router.HandleFunc("/matches/upcoming/{teamID}", GetUpcomingMatches).Methods("GET")
+	router.HandleFunc("/bets", GetAllBetsSimple).Methods("GET")
+	router.HandleFunc("/bets/history", GetAllBetsSimple).Methods("GET")
+	router.HandleFunc("/bets/history/{userAddress}", GetUserBetHistorySimple).Methods("GET")
 	return router
 }
